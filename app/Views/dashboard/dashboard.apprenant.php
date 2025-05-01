@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
-    <title>Document</title>
+    <title>Détails de l'apprenant</title>
 </head>
 
 <body>
@@ -17,77 +17,89 @@
         </a>
     </div>
     <div class="container-da">
-        <div class="left">
-            <div class="profil">
-                <img src="./assets/images/fallou.jpg" alt="">
-            </div>
-            <div class="profil-d">
-                <h1>Fallou Senghor</h1>
-                <h3>Dev Web/mobile</h3>
-                <h5>Actif</h5>
-            </div>
-            <div class="email">
-                <p><i class='bx bx-phone-call'></i> Email :</p>
-                <p><i class='bx bx-envelope'></i> Telephone :</p>
-                <p><i class='bx bx-location-plus'></i> Adress :</p>
-            </div>
-        </div>
-        <div class="right">
-            <div class="presence">
-                <div class="card-pre">
-                    <i class='bx bx-check-double'></i>
-                    <div class="text-p">
-                        <h4>20</h4>
-                        <p>Presences</p>
-                    </div>
+        <?php if (isset($apprenant)): ?>
+            <div class="left">
+                <div class="profil">
+                    <img src="./assets/images/<?= htmlspecialchars($apprenant['photo'] ?? 'fallou.jpg') ?>"
+                        alt="Photo de l'apprenant">
                 </div>
-                <div class="card-pre">
-                    <i class='bx bx-stopwatch retard'></i>
-                    <div class="text-p rd">
-                        <h4>5</h4>
-                        <p>Retards</p>
-                    </div>
+                <div class="profil-d">
+                    <h1><?= htmlspecialchars($apprenant['prenom'] . ' ' . $apprenant['nom']) ?></h1>
+                    <h3><?= htmlspecialchars($referentiel['titre'] ?? 'Aucun référentiel') ?></h3>
+                    <h5><?= htmlspecialchars($promotion['titre'] ?? 'Aucune promotion') ?></h5>
+                    <h5><?= htmlspecialchars($apprenant['status']) ?></h5>
                 </div>
-                <div class="card-pre  ">
-                    <i class='bx bx-error abs'></i>
-                    <div class="text-p abse">
-                        <h4>1</h4>
-                        <p>Absences</p>
-                    </div>
+                <div class="email">
+                    <p><i class='bx bx-envelope'></i> Email : <?= htmlspecialchars($apprenant['email']) ?></p>
+                    <p><i class='bx bx-phone-call'></i> Téléphone : <?= htmlspecialchars($apprenant['telephone']) ?></p>
+                    <p><i class='bx bx-location-plus'></i> Adresse : <?= htmlspecialchars($apprenant['adresse']) ?></p>
                 </div>
             </div>
-            <div class="pro-mod">
-                <a href="" class="program">Programmes et modules</a>
-                <a href="" class="to-ab">Total absence par etudiant</a>
-            </div>
-            <div class="cour">
-                <div class="card-cour">
-                    <div class="heure">
-                        <span>
-                            <i class='bx bx-stopwatch'></i> 30 jours
-                        </span>
-                        <i class='bx bx-dots-horizontal-rounded'></i>
+            <div class="right">
+                <div class="presence">
+                    <div class="card-pre">
+                        <i class='bx bx-check-double'></i>
+                        <div class="text-p">
+                            <h4><?= htmlspecialchars($apprenant['presences'] ?? 0) ?></h4>
+                            <p>Présences</p>
+                        </div>
                     </div>
-                    <div class="matiere">
-                        <h2>Algorithmes et Langages C</h2>
-                        <p>Complexite Algorithmique et programmation</p>
-                        <span>Active</span>
+                    <div class="card-pre">
+                        <i class='bx bx-stopwatch retard'></i>
+                        <div class="text-p rd">
+                            <h4><?= htmlspecialchars($apprenant['retards'] ?? 0) ?></h4>
+                            <p>Retards</p>
+                        </div>
                     </div>
-                    <div class="date">
-                        <p>
-                            <i class='bx bx-calendar'></i> 23 Mars 2024
-                        </p>
-                        <p>
-                            <i class='bx bx-stopwatch'></i> 15H 24min
-                        </p>
+                    <div class="card-pre">
+                        <i class='bx bx-error abs'></i>
+                        <div class="text-p abse">
+                            <h4><?= htmlspecialchars($apprenant['absences'] ?? 0) ?></h4>
+                            <p>Absences</p>
+                        </div>
                     </div>
                 </div>
+                <div class="pro-mod">
+                    <a href="?page=apprenant&action=programmes&id=<?= htmlspecialchars($apprenant['id']) ?>"
+                        class="program">Programmes et modules</a>
+                    <a href="?page=apprenant&action=absences&id=<?= htmlspecialchars($apprenant['id']) ?>"
+                        class="to-ab">Total absence par étudiant</a>
+                </div>
+                <div class="cour">
+                    <?php foreach ($apprenant['cours'] ?? [] as $cours): ?>
+                        <div class="card-cour">
+                            <div class="heure">
+                                <span>
+                                    <i class='bx bx-stopwatch'></i> <?= htmlspecialchars($cours['duree']) ?> jours
+                                </span>
+                                <i class='bx bx-dots-horizontal-rounded'></i>
+                            </div>
+                            <div class="matiere">
+                                <h2><?= htmlspecialchars($cours['titre']) ?></h2>
+                                <p><?= htmlspecialchars($cours['description']) ?></p>
+                                <span><?= htmlspecialchars($cours['status']) ?></span>
+                            </div>
+                            <div class="date">
+                                <p>
+                                    <i class='bx bx-calendar'></i> <?= htmlspecialchars($cours['date']) ?>
+                                </p>
+                                <p>
+                                    <i class='bx bx-stopwatch'></i> <?= htmlspecialchars($cours['heure']) ?>
+                                </p>
+                            </div>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
             </div>
-        </div>
+        <?php else: ?>
+            <p>Aucun apprenant trouvé.</p>
+        <?php endif; ?>
     </div>
 </body>
 
 </html>
+
+
 
 <style>
     .heure {

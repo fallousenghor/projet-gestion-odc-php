@@ -260,14 +260,14 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
         return ['success' => false, 'message' => 'Erreur d\'ouverture'];
     }
 
-    // Debug: Afficher le contenu brut
+
     error_log("Contenu du fichier:\n" . file_get_contents($filePath));
 
-    // Lire l'en-tête (première ligne)
+
     $headers = fgetcsv($file, 0, ';');
     error_log("En-têtes lus: " . implode(', ', $headers));
 
-    // Vérifier que les colonnes obligatoires existent
+
     $requiredColumns = ['prenom', 'nom', 'date_naissance', 'lieu_naissance', 'adresse', 'email', 'telephone', 'tuteur_nom', 'tuteur_parente', 'tuteur_adresse', 'tuteur_telephone'];
     foreach ($requiredColumns as $col) {
         if (!in_array($col, $headers)) {
@@ -277,20 +277,20 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
 
     $imported = 0;
     $errors = [];
-    $lineNumber = 1; // On commence à 1 car l'en-tête est la ligne 0
+    $lineNumber = 1;
 
     while (($data = fgetcsv($file, 0, ';')) !== false) {
         $lineNumber++;
         $apprenantData = array_combine($headers, $data);
 
-        // Valider les données de la ligne
+
         $validation = validate_apprenant_csv_data($apprenantData);
         if (!$validation['isValid']) {
             $errors[] = 'Ligne ' . $lineNumber . ': ' . implode(', ', $validation['errors']);
             continue;
         }
 
-        // Préparer les données de l'apprenant
+
         $apprenant = [
             'prenom' => trim($apprenantData['prenom']),
             'nom' => trim($apprenantData['nom']),
@@ -308,7 +308,7 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
             ],
             'promotion_id' => $promotion_id,
             'referentiel_id' => $referentiel_id,
-            'documents' => [] // Les documents ne sont pas gérés dans l'import CSV
+            'documents' => []
         ];
 
         if (!save_apprenant($apprenant)) {
