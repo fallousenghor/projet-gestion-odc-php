@@ -224,6 +224,7 @@ function generateTemporaryPassword($length = 10)
     return $password;
 }
 
+
 function get_apprenant_by_id($id)
 {
     $filePath = __DIR__ . '/../../public/data/data.json';
