@@ -9,8 +9,10 @@ require_once __DIR__ . '/../Models/ref.model.php';
 require_once __DIR__ . '/../Services/session.service.php';
 require_once __DIR__ . '/../Services/validator.service.php';
 require_once __DIR__ . '/../Services/mail.service.php';
-// require_once '../../vendor/autoload.php';
-// require_once '../Views/apprenants/pdf.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 function handle_request_apprenant()
 {
@@ -26,7 +28,17 @@ function handle_request_apprenant()
                 break;
 
             case 'detail':
-                handleDetailApprenant();
+                $apprenantId = isset($_GET['id']) ? (int) $_GET['id'] : null;
+                if (!$apprenantId) {
+                    throw new Exception("ID de l'apprenant manquant");
+                }
+
+                $apprenant = get_apprenant_by_id($apprenantId);
+                if (!$apprenant) {
+                    throw new Exception("Apprenant non trouvé");
+                }
+
+                require_once __DIR__ . '/../Views/apprenants/detail.apprenant.php';
                 break;
 
             case 'ad-apprenant':
@@ -38,9 +50,8 @@ function handle_request_apprenant()
                 break;
 
             case 'dashboard':
-                handleDashboard();
+                require_once __DIR__ . '/../Views/dashboard/dashboard.apprenant.php';
                 break;
-
 
             case 'liste-apprenant-par-referentiel':
                 handleListeApprenantParReferentiel();
@@ -48,10 +59,14 @@ function handle_request_apprenant()
 
             case 'upload-excel':
                 if (isset($_GET['download_template'])) {
-                    download_csv_template();
+                    generate_example_excel();
                     exit;
                 }
                 handle_upload_excel();
+                break;
+
+            case 'inscription-groupee':
+                handleInscriptionGroupee();
                 break;
 
             default:
@@ -103,35 +118,12 @@ function handleListeApprenant()
     require_once __DIR__ . '/../Views/apprenants/liste.apprenant.view.php';
 }
 
-function handleDetailApprenant()
-{
-    $apprenantId = isset($_GET['id']) ? (int) $_GET['id'] : null;
-    if (!$apprenantId) {
-        setSessionMessage('flash_message', "ID de l'apprenant manquant");
-        header('Location: ?page=apprenant&action=liste-apprenant');
-        exit;
-    }
-
-    $apprenant = get_apprenant_by_id($apprenantId);
-    if (!$apprenant) {
-        setSessionMessage('flash_message', "Apprenant non trouvé");
-        header('Location: ?page=apprenant&action=liste-apprenant');
-        exit;
-    }
-
-
-    $referentiel = get_referentiel_by_id($apprenant['referentiel_id']);
-    $promotion = get_promotion_by_id($apprenant['promotion_id']);
-
-    require_once __DIR__ . '/../Views/apprenants/detail.apprenant.php';
-}
-
 function handleAdApprenant()
 {
     $activePromo = getActivePromotion();
 
     if (!$activePromo) {
-        setSessionMessage('flash_message', "Aucune promotion active sélectionnée");
+        $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
         header('Location: ?page=promotions');
         exit;
     }
@@ -139,7 +131,7 @@ function handleAdApprenant()
     $referentiels = get_referentiels_by_promo_id($activePromo['referentiels']);
 
     if (empty($referentiels)) {
-        setSessionMessage('flash_message', "Aucun référentiel associé à la promotion active");
+        $_SESSION['flash_message'] = "Aucun référentiel associé à la promotion active";
         header('Location: ?page=referentiel&action=ad-ref');
         exit;
     }
@@ -184,7 +176,7 @@ function handleSaveApprenant()
     $activePromo = getActivePromotion();
 
     if (!$activePromo) {
-        setSessionMessage('flash_message', "Aucune promotion active sélectionnée");
+        $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
         header('Location: ?page=promotions');
         exit;
     }
@@ -192,8 +184,8 @@ function handleSaveApprenant()
     $errors = validate_apprenant_data($_POST);
 
     if (!$errors['isValid']) {
-        setSessionMessage('form_errors', $errors['errors']);
-        setFormData($_POST);
+        $_SESSION['form_errors'] = $errors['errors'];
+        $_SESSION['form_data'] = $_POST;
         header('Location: ?page=apprenant&action=ad-apprenant');
         exit;
     }
@@ -221,37 +213,14 @@ function handleSaveApprenant()
     ];
 
     if (save_apprenant($apprenant)) {
-        setSessionMessage('flash_message', "Apprenant ajouté avec succès");
+        $_SESSION['flash_message'] = "Apprenant ajouté avec succès";
     } else {
-        setSessionMessage('flash_message', "Erreur lors de l'enregistrement de l'apprenant");
-        setFormData($_POST);
+        $_SESSION['flash_message'] = "Erreur lors de l'enregistrement de l'apprenant";
+        $_SESSION['form_data'] = $_POST;
     }
 
     header('Location: ?page=apprenant&action=liste-apprenant');
     exit;
-}
-
-function handleDashboard()
-{
-    $apprenantId = isset($_GET['id']) ? (int) $_GET['id'] : null;
-    if (!$apprenantId) {
-        setSessionMessage('flash_message', "ID de l'apprenant manquant");
-        header('Location: ?page=apprenant&action=liste-apprenant');
-        exit;
-    }
-
-    $apprenant = get_apprenant_by_id($apprenantId);
-    if (!$apprenant) {
-        setSessionMessage('flash_message', "Apprenant non trouvé");
-        header('Location: ?page=apprenant&action=liste-apprenant');
-        exit;
-    }
-
-
-    $referentiel = get_referentiel_by_id($apprenant['referentiel_id']);
-    $promotion = get_promotion_by_id($apprenant['promotion_id']);
-
-    require_once __DIR__ . '/../Views/dashboard/dashboard.apprenant.php';
 }
 
 function handleListeApprenantParReferentiel()
@@ -259,7 +228,7 @@ function handleListeApprenantParReferentiel()
     $referentiel_id = $_GET['referentiel_id'] ?? null;
 
     if (!$referentiel_id) {
-        setSessionMessage('flash_message', "ID de référentiel manquant");
+        $_SESSION['flash_message'] = "ID de référentiel manquant";
         header('Location: ?page=referentiel&action=liste-ref');
         exit;
     }
@@ -268,94 +237,150 @@ function handleListeApprenantParReferentiel()
     // require_once __DIR__ . '/../Views/apprenants/liste.apprenant.par.referentiel.view.php';
 }
 
+function validate_apprenant_form($post_data, $files_data)
+{
+    $errors = [];
+
+    $required_fields = [
+        'prenom' => 'Le prénom est obligatoire',
+        'nom' => 'Le nom est obligatoire',
+        'dateNaissance' => 'La date de naissance est obligatoire',
+        'lieuNaissance' => 'Le lieu de naissance est obligatoire',
+        'adresse' => 'L\'adresse est obligatoire',
+        'email' => 'L\'email est obligatoire',
+        'telephone' => 'Le téléphone est obligatoire',
+        'tuteurNom' => 'Le nom du tuteur est obligatoire',
+        'parente' => 'Le lien de parenté est obligatoire',
+        'tuteurAdresse' => 'L\'adresse du tuteur est obligatoire',
+        'tuteurTelephone' => 'Le téléphone du tuteur est obligatoire',
+        'referentiel_id' => 'Veuillez sélectionner un référentiel'
+    ];
+
+    foreach ($required_fields as $field => $message) {
+        if (empty($post_data[$field])) {
+            $errors[$field] = $message;
+        }
+    }
+
+    if (!empty($post_data['email']) && !filter_var($post_data['email'], FILTER_VALIDATE_EMAIL)) {
+        $errors['email'] = 'Email invalide';
+    }
+
+    $phone_pattern = '/^[0-9\+\-\s\(\)]{8,15}$/';
+    if (!empty($post_data['telephone'])) {
+        $cleaned_phone = preg_replace('/[^0-9]/', '', $post_data['telephone']);
+        if (strlen($cleaned_phone) < 8) {
+            $errors['telephone'] = 'Numéro de téléphone trop court (min 8 chiffres)';
+        } elseif (!preg_match($phone_pattern, $post_data['telephone'])) {
+            $errors['telephone'] = 'Format de téléphone invalide';
+        }
+    }
+
+    if (!empty($post_data['dateNaissance'])) {
+        $date = DateTime::createFromFormat('Y-m-d', $post_data['dateNaissance']);
+        if (!$date || $date->format('Y-m-d') !== $post_data['dateNaissance']) {
+            $errors['dateNaissance'] = 'Format de date invalide (YYYY-MM-DD requis)';
+        }
+    }
+
+    return $errors;
+}
+
+function handleInscriptionGroupee()
+{
+    $activePromo = getActivePromotion();
+
+    if (!$activePromo) {
+        $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
+        header('Location: ?page=promotions');
+        exit;
+    }
+
+    require_once __DIR__ . '/../Views/apprenants/inscription.groupe.php';
+}
+
 function handle_upload_excel()
 {
     if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['import_csv'])) {
         $file = $_FILES['import_csv']['tmp_name'];
         if (!is_uploaded_file($file)) {
-            setSessionMessage('flash_message', "Fichier invalide");
-            header('Location: ?page=apprenant&action=ad-apprenant');
+            $_SESSION['flash_message'] = "Fichier invalide";
+            header('Location: ?page=apprenant&action=inscription-groupee');
             exit;
         }
 
         $activePromo = getActivePromotion();
         if (!$activePromo) {
-            setSessionMessage('flash_message', "Aucune promotion active sélectionnée");
+            $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
             header('Location: ?page=promotions');
             exit;
         }
 
-        $referentiel_id = $_POST['referentiel_id'] ?? null;
-        if (!$referentiel_id) {
-            setSessionMessage('flash_message', "Veuillez sélectionner un référentiel");
-            header('Location: ?page=apprenant&action=ad-apprenant');
-            exit;
-        }
-
-        $result = import_apprenants_from_csv($file, $activePromo['id'], $referentiel_id);
+        $result = import_apprenants_from_excel($file, $activePromo['id']);
 
         if ($result['success']) {
-            setSessionMessage('flash_message', "Importation réussie. " . $result['imported'] . " apprenants importés.");
+            $_SESSION['flash_message'] = "Importation réussie. " . $result['imported'] . " apprenants importés.";
             if (!empty($result['errors'])) {
-                setSessionMessage('flash_message', getSessionMessage('flash_message') . " Erreurs rencontrées : " . implode(', ', $result['errors']));
+                $_SESSION['flash_message'] .= " Erreurs rencontrées : " . implode(', ', $result['errors']);
             }
         } else {
-            setSessionMessage('flash_message', "Échec de l'importation : " . $result['message']);
+            $_SESSION['flash_message'] = "Échec de l'importation : " . $result['message'];
         }
 
         header('Location: ?page=apprenant&action=liste-apprenant');
         exit;
     } else {
-        setSessionMessage('flash_message', "Aucun fichier envoyé");
-        header('Location: ?page=apprenant&action=ad-apprenant');
+        $_SESSION['flash_message'] = "Aucun fichier envoyé";
+        header('Location: ?page=apprenant&action=inscription-groupee');
         exit;
     }
 }
 
-function download_csv_template()
+function generate_example_excel()
 {
-    $filename = "modele_apprenant.csv";
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
 
-    $out = fopen('php://output', 'w');
-
-    if (!$out) {
-        error_log("Erreur lors de l'ouverture du flux de sortie pour le fichier CSV.");
-        return;
-    }
 
     $headers = [
         'prenom',
         'nom',
-        'date_naissance',
-        'lieu_naissance',
+        'dateNaissance',
+        'lieuNaissance',
         'adresse',
         'email',
         'telephone',
-        'tuteur_nom',
-        'tuteur_parente',
-        'tuteur_adresse',
-        'tuteur_telephone'
+        'tuteurNom',
+        'parente',
+        'tuteurAdresse',
+        'tuteurTelephone',
+        'referentiel'
     ];
 
-    fputcsv($out, $headers, ';');
+
+    $sheet->fromArray($headers, null, 'A1');
+
 
     $exampleData = [
-        'Jean',
-        'Dupont',
-        '2000-01-15',
-        'Paris',
-        '12 Rue des Exemples',
-        'jean.dupont@example.com',
-        '771234567',
-        'Marie Dupont',
-        'Mère',
-        '12 Rue des Exemples',
-        '771234568'
+
     ];
 
-    fputcsv($out, $exampleData, ';');
+    foreach ($exampleData as $rowIndex => $row) {
+        $sheet->fromArray($row, null, 'A' . ($rowIndex + 2));
+    }
 
-    fclose($out);
+
+    foreach (range('A', 'L') as $columnID) {
+        $sheet->getColumnDimension($columnID)->setWidth(20);
+    }
+
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="exemple_apprenants.xlsx"');
+    header('Cache-Control: max-age=0');
+
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
 }

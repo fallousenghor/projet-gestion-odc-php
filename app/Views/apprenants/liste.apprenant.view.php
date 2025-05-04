@@ -30,7 +30,8 @@
 
 
             <div class="hedader-right">
-                <!-- <a href="" class="telechage-liste excel">Importer un fichier</a> -->
+                <a href="?page=apprenant&action=inscription-groupee" class="telechage-liste excel">Importer un
+                    fichier</a>
 
                 <a href="" class="telechage-liste">Télécharger la liste</a>
                 <a href="?page=apprenant&action=ad-apprenant" class="liste-apprenant">Ajouter un apprenant</a>

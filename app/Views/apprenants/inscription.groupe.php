@@ -4,242 +4,52 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Ajout Apprenant</title>
-
+    <title>Inscription Groupée</title>
 </head>
 
 <body>
     <div class="container">
-        <?php if (isset($_SESSION['flash_message'])): ?>
-            <?php
-            $isSuccess = strpos($_SESSION['flash_message'], 'succès') !== false || strpos($_SESSION['flash_message'], 'Succès') !== false;
+        <?php
+        $flashMessage = getSessionMessage('flash_message');
+        if ($flashMessage): ?>
+        <?php
+            $isSuccess = $flashMessage && (strpos($flashMessage, 'succès') !== false || strpos($flashMessage, 'Succès') !== false);
             ?>
-            <div class="alert alert-<?= $isSuccess ? 'success' : 'danger' ?>">
-                <?= $_SESSION['flash_message'] ?>
-            </div>
-            <?php
-            unset($_SESSION['flash_message']);
-
-            // Si succès, on réinitialise les données du formulaire
-            if ($isSuccess) {
-                unset($_SESSION['form_data']);
-                unset($_SESSION['form_errors']);
-            }
-            ?>
+        <div class="alert alert-<?= $isSuccess ? 'success' : 'danger' ?>">
+            <?= $flashMessage ?>
+        </div>
         <?php endif; ?>
-        <form action="?page=apprenant&action=upload-excel" method="post" enctype="multipart/form-data"
-            onsubmit="return resetFormOnSuccess(event)">
-            <div class="form-section">
-                <div class="section-title">Importation via CSV</div>
-
-                <label for="import_csv">Fichier CSV</label>
-                <input type="file" id="import_csv" name="import_csv" accept=".csv">
-
-                <label for="referentiel_id">Référentiel</label>
-                <select id="referentiel_id" name="referentiel_id" required>
-                    <option value="">Sélectionnez un référentiel</option>
-                    <?php if (isset($referentiels) && is_array($referentiels)): ?>
-                        <?php foreach ($referentiels as $referentiel): ?>
-                            <option value="<?= htmlspecialchars($referentiel['id']) ?>">
-                                <?= htmlspecialchars($referentiel['titre']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option disabled>Aucun référentiel disponible</option>
-                    <?php endif; ?>
-                </select>
-
-                <div class="form-text">
-                    Téléchargez notre
-                    <a href="?page=apprenant&action=upload-excel&download_template=1" class="link-primary">modèle
-                        CSV</a>
-                    pour garantir un format correct.
-                </div>
-
-                <button type="submit" name="upload_excel" class="btn btn-save">Importer le fichier</button>
-
-                <!-- Zone d'affichage des messages -->
-                <?php if (!empty($_SESSION['upload_message'])): ?>
-                    <div class="alert alert-success mt-2">
-                        <?= $_SESSION['upload_message'];
-                        unset($_SESSION['upload_message']); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </form>
-
-
-
-
-        <!-- Import CSV -->
 
         <div class="titre">
-            <h1>Ajout apprenant</h1>
+            <h1>Inscription Groupée</h1>
         </div>
 
-        <form action="?page=apprenant&action=save-apprenant" method="POST" enctype="multipart/form-data">
-
-
-            <!-- Infos apprenant -->
+        <form action="?page=apprenant&action=upload-excel" method="POST" enctype="multipart/form-data">
             <div class="form-section">
-                <div class="section-title">Informations de l'apprenant</div>
+                <div class="section-title">Importer un fichier Excel</div>
                 <div class="row">
                     <div>
-                        <label for="prenom">Prénom(s)</label>
-                        <input type="text" id="prenom" name="prenom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['prenom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['prenom'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['prenom'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <label for="nom">Nom</label>
-                        <input type="text" id="nom" name="nom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['nom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['nom'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['nom'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div>
-                        <label for="dateNaissance">Date de naissance</label>
-                        <input type="text" id="dateNaissance" name="dateNaissance"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['dateNaissance'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['dateNaissance'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['dateNaissance'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <label for="lieuNaissance">Lieu de naissance</label>
-                        <input type="text" id="lieuNaissance" name="lieuNaissance"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['lieuNaissance'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['lieuNaissance'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['lieuNaissance'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div>
-                        <label for="adresse">Adresse</label>
-                        <input type="text" id="adresse" name="adresse"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['adresse'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['adresse'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['adresse'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <label for="email">Email</label>
-                        <input type="text" id="email" name="email"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['email'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['email'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['email'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div>
-                        <label for="telephone">Téléphone</label>
-                        <input type="text" id="telephone" name="telephone"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['telephone'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['telephone'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['telephone'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <div class="upload-box">
-                            <label for="documents">Ajouter des documents</label>
-                            <input type="file" id="documents" name="documents[]" multiple>
-                        </div>
+                        <label for="import_csv">Fichier Excel</label>
+                        <input type="file" id="import_csv" name="import_csv" accept=".xlsx" required>
                     </div>
                 </div>
             </div>
 
-            <!-- Infos tuteur -->
-            <div class="form-section">
-                <div class="section-title">Informations du tuteur</div>
-                <div class="row">
-                    <div>
-                        <label for="tuteurNom">Prénom(s) & nom</label>
-                        <input type="text" id="tuteurNom" name="tuteurNom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurNom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurNom'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurNom'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <label for="parente">Lien de parenté</label>
-                        <input type="text" id="parente" name="parente"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['parente'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['parente'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['parente'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                </div>
-
-                <div class="row">
-                    <div>
-                        <label for="tuteurAdresse">Adresse</label>
-                        <input type="text" id="tuteurAdresse" name="tuteurAdresse"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurAdresse'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurAdresse'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurAdresse'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                    <div>
-                        <label for="tuteurTelephone">Téléphone</label>
-                        <input type="text" id="tuteurTelephone" name="tuteurTelephone"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurTelephone'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurTelephone'])): ?>
-                            <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurTelephone'] ?>
-                            </div><?php endif; ?>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Référentiel -->
-            <div class="form-section">
-                <div class="section-title">Référentiel</div>
-                <label for="referentiel_id">Référentiel</label>
-                <select id="referentiel_id" name="referentiel_id">
-                    <option value="">Sélectionnez un référentiel</option>
-                    <?php if (isset($referentiels) && is_array($referentiels)): ?>
-                        <?php foreach ($referentiels as $referentiel): ?>
-                            <option value="<?= htmlspecialchars($referentiel['id']) ?>"
-                                <?= isset($_SESSION['form_data']['referentiel_id']) && $_SESSION['form_data']['referentiel_id'] == $referentiel['id'] ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($referentiel['titre']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option disabled>Aucun référentiel disponible</option>
-                    <?php endif; ?>
-                </select>
-                <?php if (isset($_SESSION['form_errors']['referentiel_id'])): ?>
-                    <div class="error">
-                        <?= $_SESSION['form_errors']['referentiel_id'] ?>
-                    </div><?php endif; ?>
-            </div>
-
-            <!-- Actions -->
             <div class="text-right">
                 <a href="?page=apprenant&action=liste-apprenant" class="btn btn-secondary">Annuler</a>
-                <button type="submit" class="btn btn-save">Enregistrer</button>
+                <button type="submit" class="btn btn-save">Importer</button>
             </div>
         </form>
+
+        <div class="form-section">
+            <div class="section-title">Télécharger un modèle Excel</div>
+            <div class="row">
+                <div>
+                    <a href="?page=apprenant&action=upload-excel&download_template=1"
+                        class="btn btn-primary">Télécharger le modèle</a>
+                </div>
+            </div>
+        </div>
     </div>
 </body>
 
@@ -248,280 +58,291 @@
 
 
 
+
+
+
+
+
+
+
 <style>
-    body {
-        font-family: Arial, sans-serif;
-        margin: 0;
-        padding: 20px;
-        background: #f9f9f9;
-    }
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f9f9f9;
+    /* height: 100vh; */
+}
 
-    .container {
-        max-width: 1000px;
-        margin: auto;
-        background: #fff;
-        padding: 20px;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
+.container {
+    min-width: 70%;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 
-    .titre h1 {
-        text-align: center;
-        margin-bottom: 20px;
-    }
 
-    .form-section {
-        margin-top: 30px;
-        border-top: 1px solid #ccc;
-        padding-top: 20px;
-    }
+}
 
-    .section-title {
-        font-size: 18px;
-        margin-bottom: 15px;
-        color: #333;
-        font-weight: bold;
-    }
+.titre h1 {
+    text-align: center;
+    margin-bottom: 20px;
+}
 
-    label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-    }
+.form-section {
+    margin-top: 30px;
+    border-top: 1px solid #ccc;
+    padding-top: 20px;
+    /* max-height: 80%; */
+}
 
-    input[type="text"],
-    input[type="file"],
-    select {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 15px;
-        border-radius: 4px;
-        border: 1px solid #ccc;
-    }
+.section-title {
+    font-size: 18px;
+    margin-bottom: 15px;
+    color: #333;
+    font-weight: bold;
+}
 
-    .row {
-        display: flex;
-        gap: 20px;
-        flex-wrap: wrap;
-    }
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
 
-    .row>div {
-        flex: 1 1 45%;
-    }
+input[type="text"],
+input[type="file"],
+select {
+    width: 100%;
+    padding: 8px;
+    margin-bottom: 15px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
 
-    .text-right {
-        text-align: right;
-        margin-top: 20px;
-    }
+.row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+}
 
-    .btn {
-        display: inline-block;
-        padding: 10px 20px;
-        margin: 5px;
-        border: none;
-        border-radius: 5px;
-        text-decoration: none;
-        cursor: pointer;
-    }
+.row>div {
+    flex: 1 1 45%;
+}
 
-    .btn-save {
-        background-color: #4CAF50;
-        color: white;
-    }
+.text-right {
+    text-align: right;
+    margin-top: 20px;
+}
 
-    .btn-secondary {
-        background-color: #ccc;
-        color: #333;
-    }
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    margin: 5px;
+    border: none;
+    border-radius: 5px;
+    text-decoration: none;
+    cursor: pointer;
+}
 
-    .alert {
-        padding: 10px;
-        border-radius: 5px;
-        margin-bottom: 20px;
-    }
+.btn-save {
+    background-color: #4CAF50;
+    color: white;
+}
 
-    .alert-success {
-        background-color: #d4edda;
-        color: #155724;
-    }
+.btn-secondary {
+    background-color: #ccc;
+    color: #333;
+}
 
-    .alert-danger {
-        background-color: #f8d7da;
-        color: #721c24;
-    }
+.alert {
+    padding: 10px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+}
 
-    .alert-warning {
-        background-color: #fff3cd;
-        color: #856404;
-    }
+.alert-success {
+    background-color: #d4edda;
+    color: #155724;
+}
 
-    .error {
-        color: red;
-        font-size: 14px;
-    }
+.alert-danger {
+    background-color: #f8d7da;
+    color: #721c24;
+}
 
-    .upload-box {
-        padding: 10px;
-        background-color: #eee;
-        border: 1px dashed #aaa;
-        text-align: center;
-        border-radius: 5px;
-    }
+.alert-warning {
+    background-color: #fff3cd;
+    color: #856404;
+}
 
-    .upload-box input[type="file"] {
-        display: block;
-        margin-top: 10px;
-    }
+.error {
+    color: red;
+    font-size: 14px;
+}
 
-    .form-text {
-        font-size: 13px;
-        color: #666;
-    }
+.upload-box {
+    padding: 10px;
+    background-color: #eee;
+    border: 1px dashed #aaa;
+    text-align: center;
+    border-radius: 5px;
+}
 
-    a.link-primary {
-        color: #007bff;
-        text-decoration: underline;
-    }
+.upload-box input[type="file"] {
+    display: block;
+    margin-top: 10px;
+}
 
-    body {
-        font-family: Arial, sans-serif;
-        background-color: #f8f9fa;
-        margin: 0;
-        padding: 0;
-    }
+.form-text {
+    font-size: 13px;
+    color: #666;
+}
 
-    .container {
-        width: 1100px;
-        margin: 50px auto;
-        padding: 20px;
-        background-color: #fff;
-        border-radius: 8px;
-        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
+a.link-primary {
+    color: #007bff;
+    text-decoration: underline;
+}
 
-    .titre {
-        text-align: center;
-        margin-bottom: 20px;
-    }
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f8f9fa;
+    margin: 0;
+    padding: 0;
+}
 
-    .titre h1 {
-        margin: 0;
-        font-size: 2rem;
-        color: #333;
-    }
+.container {
+    width: 1100px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
 
-    .titre span {
-        font-size: 1rem;
-        color: #666;
-    }
+.titre {
+    text-align: center;
+    margin-bottom: 20px;
+}
 
-    .form-section {
-        border: 1px solid #ddd;
-        border-radius: 8px;
-        padding: 20px;
-        margin-bottom: 20px;
-        background-color: #fff;
-    }
+.titre h1 {
+    margin: 0;
+    font-size: 2rem;
+    color: #333;
+}
 
-    .section-title {
-        font-weight: bold;
-        font-size: 1.2rem;
-        margin-bottom: 15px;
-        display: flex;
-        align-items: center;
-    }
+.titre span {
+    font-size: 1rem;
+    color: #666;
+}
 
-    .section-title i {
-        margin-left: 10px;
-        cursor: pointer;
-    }
+.form-section {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    margin-bottom: 20px;
+    background-color: #fff;
+}
 
-    .row {
-        display: flex;
-        margin-bottom: 15px;
-    }
+.section-title {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
 
-    .col-md-6 {
-        flex: 1;
-        margin-right: 10px;
-    }
+.section-title i {
+    margin-left: 10px;
+    cursor: pointer;
+}
 
-    .col-md-6:last-child {
-        margin-right: 0;
-    }
+.row {
+    display: flex;
+    margin-bottom: 15px;
+}
 
-    label {
-        display: block;
-        margin-bottom: 5px;
-        font-weight: bold;
-    }
+.col-md-6 {
+    flex: 1;
+    margin-right: 10px;
+}
 
-    input[type="text"],
-    input[type="email"],
-    input[type="date"],
-    select {
-        width: 100%;
-        padding: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #ccc;
-        border-radius: 4px;
-        box-sizing: border-box;
-    }
+.col-md-6:last-child {
+    margin-right: 0;
+}
 
-    .upload-box {
-        border: 2px dashed #007bff;
-        border-radius: 8px;
-        padding: 30px;
-        text-align: center;
-        color: #007bff;
-        cursor: pointer;
-    }
+label {
+    display: block;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
 
-    .upload-box i {
-        font-size: 2rem;
-    }
+input[type="text"],
+input[type="email"],
+input[type="date"],
+select {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
 
-    .btn {
-        display: inline-block;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-        text-decoration: none;
-        color: #fff;
-        font-size: 1rem;
-    }
+.upload-box {
+    border: 2px dashed #007bff;
+    border-radius: 8px;
+    padding: 30px;
+    text-align: center;
+    color: #007bff;
+    cursor: pointer;
+}
 
-    .btn-secondary {
-        background-color: #6c757d;
-        margin-right: 10px;
-    }
+.upload-box i {
+    font-size: 2rem;
+}
 
-    .btn-save {
-        background-color: #009688;
-    }
+.btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    text-decoration: none;
+    color: #fff;
+    font-size: 1rem;
+}
 
-    .btn-save:hover,
-    .btn-secondary:hover {
-        opacity: 0.8;
-    }
+.btn-secondary {
+    background-color: #6c757d;
+    margin-right: 10px;
+}
 
-    .alert {
-        padding: 15px;
-        border: 1px solid transparent;
-        border-radius: 4px;
-        margin-bottom: 20px;
-    }
+.btn-save {
+    background-color: #009688;
+}
 
-    .alert-success {
-        background-color: #d4edda;
-        border-color: #c3e6cb;
-        color: #155724;
-    }
+.btn-save:hover,
+.btn-secondary:hover {
+    opacity: 0.8;
+}
 
-    .alert-danger {
-        background-color: #f8d7da;
-        border-color: #f5c6cb;
-        color: #721c24;
-    }
+.alert {
+    padding: 15px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    margin-bottom: 20px;
+}
+
+.alert-success {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
 </style>

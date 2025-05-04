@@ -5,7 +5,7 @@ function get_all_apprenant()
     $filePath = __DIR__ . '/../../public/data/data.json';
 
     if (!file_exists($filePath)) {
-        file_put_contents($filePath, encode_json(['apprenants' => [], 'last_id' => 0]));
+        file_put_contents($filePath, json_encode(['apprenants' => [], 'last_id' => 0]));
         return [];
     }
 
@@ -14,7 +14,6 @@ function get_all_apprenant()
 
     return $data['apprenants'] ?? [];
 }
-
 
 function generateMatricule($apprenantData)
 {
@@ -224,6 +223,7 @@ function generateTemporaryPassword($length = 10)
     }
     return $password;
 }
+
 function get_apprenant_by_id($id)
 {
     $filePath = __DIR__ . '/../../public/data/data.json';
@@ -238,37 +238,52 @@ function get_apprenant_by_id($id)
     foreach ($data['apprenants'] as $apprenant) {
         if ($apprenant['id'] == $id) {
             return $apprenant;
-
         }
-
     }
 
     return null;
 }
-function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
-{
-    error_log("Tentative d'import depuis: " . $filePath);
 
+use PhpOffice\PhpSpreadsheet\IOFactory;
+
+function import_apprenants_from_excel($filePath, $promotion_id)
+{
     if (!file_exists($filePath)) {
-        error_log("Fichier introuvable: " . $filePath);
         return ['success' => false, 'message' => 'Fichier introuvable'];
     }
 
-    $file = fopen($filePath, 'r');
-    if (!$file) {
-        error_log("Impossible d'ouvrir le fichier: " . $filePath);
-        return ['success' => false, 'message' => 'Erreur d\'ouverture'];
+    $spreadsheet = IOFactory::load($filePath);
+    $sheet = $spreadsheet->getActiveSheet();
+    $rows = [];
+
+    foreach ($sheet->getRowIterator() as $row) {
+        $cells = $row->getCellIterator();
+        $cells->setIterateOnlyExistingCells(false);
+        $rowData = [];
+
+        foreach ($cells as $cell) {
+            $rowData[] = $cell->getValue();
+        }
+
+        $rows[] = $rowData;
     }
 
+    $headers = array_shift($rows);
+    $requiredColumns = [
+        'prenom',
+        'nom',
+        'dateNaissance',
+        'lieuNaissance',
+        'adresse',
+        'email',
+        'telephone',
+        'tuteurNom',
+        'parente',
+        'tuteurAdresse',
+        'tuteurTelephone',
+        'referentiel' // Ajouter la colonne pour le référentiel
+    ];
 
-    error_log("Contenu du fichier:\n" . file_get_contents($filePath));
-
-
-    $headers = fgetcsv($file, 0, ';');
-    error_log("En-têtes lus: " . implode(', ', $headers));
-
-
-    $requiredColumns = ['prenom', 'nom', 'date_naissance', 'lieu_naissance', 'adresse', 'email', 'telephone', 'tuteur_nom', 'tuteur_parente', 'tuteur_adresse', 'tuteur_telephone'];
     foreach ($requiredColumns as $col) {
         if (!in_array($col, $headers)) {
             return ['success' => false, 'message' => 'Colonne manquante: ' . $col];
@@ -277,34 +292,49 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
 
     $imported = 0;
     $errors = [];
-    $lineNumber = 1;
 
-    while (($data = fgetcsv($file, 0, ';')) !== false) {
-        $lineNumber++;
-        $apprenantData = array_combine($headers, $data);
+    foreach ($rows as $rowIndex => $rowData) {
+        $apprenantData = array_combine($headers, $rowData);
 
+        // Nettoyer les données
+        $apprenantData = array_map(function ($value) {
+            return $value !== null ? trim($value) : '';
+        }, $apprenantData);
 
-        $validation = validate_apprenant_csv_data($apprenantData);
-        if (!$validation['isValid']) {
-            $errors[] = 'Ligne ' . $lineNumber . ': ' . implode(', ', $validation['errors']);
+        $apprenantData['email'] = filter_var($apprenantData['email'], FILTER_SANITIZE_EMAIL);
+
+        // Obtenir l'ID du référentiel à partir du nom
+        $referentiel_id = getReferentielIdByName($apprenantData['referentiel']);
+        if (!$referentiel_id) {
+            $errors[] = 'Ligne ' . ($rowIndex + 2) . ': Référentiel invalide';
             continue;
         }
 
+        $apprenantData['referentiel_id'] = $referentiel_id;
+
+        $validation = validate_apprenant_data($apprenantData);
+
+        if (!$validation['isValid']) {
+            foreach ($validation['errors'] as $field => $error) {
+                $errors[] = 'Ligne ' . ($rowIndex + 2) . ': ' . $field . ' - ' . $error;
+            }
+            continue;
+        }
 
         $apprenant = [
-            'prenom' => trim($apprenantData['prenom']),
-            'nom' => trim($apprenantData['nom']),
-            'date_naissance' => trim($apprenantData['date_naissance']),
-            'lieu_naissance' => trim($apprenantData['lieu_naissance']),
-            'adresse' => trim($apprenantData['adresse']),
-            'email' => trim($apprenantData['email']),
-            'telephone' => trim($apprenantData['telephone']),
+            'prenom' => $apprenantData['prenom'],
+            'nom' => $apprenantData['nom'],
+            'date_naissance' => $apprenantData['dateNaissance'],
+            'lieu_naissance' => $apprenantData['lieuNaissance'],
+            'adresse' => $apprenantData['adresse'],
+            'email' => $apprenantData['email'],
+            'telephone' => $apprenantData['telephone'],
             'status' => 'active',
             'tuteur' => [
-                'nom' => trim($apprenantData['tuteur_nom']),
-                'lien_parente' => trim($apprenantData['tuteur_parente']),
-                'adresse' => trim($apprenantData['tuteur_adresse']),
-                'telephone' => trim($apprenantData['tuteur_telephone'])
+                'nom' => $apprenantData['tuteurNom'],
+                'lien_parente' => $apprenantData['parente'],
+                'adresse' => $apprenantData['tuteurAdresse'],
+                'telephone' => $apprenantData['tuteurTelephone']
             ],
             'promotion_id' => $promotion_id,
             'referentiel_id' => $referentiel_id,
@@ -312,13 +342,11 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
         ];
 
         if (!save_apprenant($apprenant)) {
-            $errors[] = 'Ligne ' . $lineNumber . ': Erreur lors de l\'enregistrement';
+            $errors[] = 'Ligne ' . ($rowIndex + 2) . ': Erreur lors de l\'enregistrement';
         } else {
             $imported++;
         }
     }
-
-    fclose($file);
 
     return [
         'success' => true,
@@ -327,44 +355,13 @@ function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
     ];
 }
 
-
-
-function validate_apprenant_csv_data($data)
+function getReferentielIdByName($referentielName)
 {
-    $errors = [];
-
-
-    $requiredFields = [
-        'prenom',
-        'nom',
-        'date_naissance',
-        'lieu_naissance',
-        'adresse',
-        'email',
-        'telephone',
-        'tuteur_nom',
-        'tuteur_parente',
-        'tuteur_adresse',
-        'tuteur_telephone'
-    ];
-
-    foreach ($requiredFields as $field) {
-        if (empty(trim($data[$field] ?? ''))) {
-            $errors[] = "Le champ $field est requis";
+    $referentiels = get_all_ref();
+    foreach ($referentiels as $referentiel) {
+        if (strtolower(trim($referentiel['titre'])) === strtolower(trim($referentielName))) {
+            return $referentiel['id'];
         }
     }
-
-
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Email invalide";
-    }
-
-    if (!DateTime::createFromFormat('Y-m-d', $data['date_naissance'])) {
-        $errors[] = "Format de date invalide (doit être YYYY-MM-DD)";
-    }
-
-    return [
-        'isValid' => empty($errors),
-        'errors' => $errors
-    ];
+    return null;
 }
