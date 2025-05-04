@@ -7,12 +7,13 @@
             <span><?= $totalApprenants ?> apprenants</span>
         </div>
         <div class="header">
-            <form action="" method="GET" class="header-left">
+            <form action="?page=apprenant&action=liste-apprenant" method="GET" class="header-left">
                 <input type="hidden" name="page" value="apprenant">
                 <input type="hidden" name="action" value="liste-apprenant">
-                <input type="text" name="search" placeholder="Rechercher" value="<?= htmlspecialchars($search) ?>">
+                <input type="text" name="search" placeholder="Rechercher"
+                    value="<?= htmlspecialchars($search ?? '') ?>">
                 <select name="referentiel" id="referentiel">
-                    <option value="">Filtre par référentiel</option>
+                    <option value="">Filtrer par référentiel</option>
                     <?php foreach (get_all_ref() as $ref): ?>
                         <option value="<?= $ref['id'] ?>" <?= $referentiel == $ref['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($ref['libelle'] ?? '') ?>
@@ -26,7 +27,12 @@
                 </select>
                 <button type="submit" class="btn-r">Rechercher</button>
             </form>
+
+
             <div class="hedader-right">
+                <a href="?page=apprenant&action=inscription-groupee" class="telechage-liste excel">Importer un
+                    fichier</a>
+
                 <a href="" class="telechage-liste">Télécharger la liste</a>
                 <a href="?page=apprenant&action=ad-apprenant" class="liste-apprenant">Ajouter un apprenant</a>
             </div>
@@ -77,10 +83,11 @@
                                     </span>
                                 </td>
                                 <td class="actions-cell">
-                                    <a href="?page=apprenant&action=dashboard">
+                                    <a href="?page=apprenant&action=dashboard&id=<?= htmlspecialchars($apprenant['id']) ?>">
                                         <button class="action-menu">•••</button>
                                     </a>
                                 </td>
+
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -123,9 +130,6 @@
 </body>
 
 
-
-
-
 <style>
     :root {
         --vert: #0e938a;
@@ -143,6 +147,9 @@
         --text-grey: #949698;
     }
 
+    .excel {
+        background-color: #047857 !important;
+    }
 
     .container-app {
         width: 84%;
@@ -229,6 +236,7 @@
         gap: 10px;
         justify-content: center;
         align-items: center;
+        width: 40%;
     }
 
     .header {

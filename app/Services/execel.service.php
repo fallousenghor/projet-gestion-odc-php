@@ -1,78 +1,83 @@
 <?php
-function readCSVFile($filePath)
+require_once __DIR__ . '/../Controllers/apprenant.controller.php';
+function handleTelechargerListe()
 {
-    $apprenants = [];
+    $format = $_GET['format'] ?? 'pdf';
+    $apprenants = get_all_apprenant(); // Assurez-vous que cette fonction existe et retourne tous les apprenants
 
-    if (($handle = fopen($filePath, "r")) !== FALSE) {
+    if ($format === 'excel') {
+        generateExcel($apprenants);
+    } elseif ($format === 'pdf') {
+        generatePdf($apprenants);
+    } else {
+        throw new Exception("Format non supporté");
+    }
+}
 
-        fgetcsv($handle, 1000, ",");
+function generateExcel($apprenants)
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheet->setCellValue('A1', 'Photo');
+    $sheet->setCellValue('B1', 'Matricule');
+    $sheet->setCellValue('C1', 'Nom Complet');
+    $sheet->setCellValue('D1', 'Adresse');
+    $sheet->setCellValue('E1', 'Téléphone');
+    $sheet->setCellValue('F1', 'Référentiel');
+    $sheet->setCellValue('G1', 'Statut');
 
-        while (($data = fgetcsv($handle, 1000, ",")) !== FALSE) {
-
-            if (empty(array_filter($data)))
-                continue;
-
-            $apprenants[] = [
-                'prenom' => $data[0] ?? '',
-                'nom' => $data[1] ?? '',
-                'dateNaissance' => $data[2] ?? '',
-                'lieuNaissance' => $data[3] ?? '',
-                'adresse' => $data[4] ?? '',
-                'email' => $data[5] ?? '',
-                'telephone' => $data[6] ?? '',
-                'tuteurNom' => $data[7] ?? '',
-                'parente' => $data[8] ?? '',
-                'tuteurAdresse' => $data[9] ?? '',
-                'tuteurTelephone' => $data[10] ?? '',
-                'referentiel_id' => $data[11] ?? ''
-            ];
-        }
-        fclose($handle);
+    $row = 2;
+    foreach ($apprenants as $apprenant) {
+        $sheet->setCellValue("A$row", 'Photo'); // Vous pouvez ajouter un lien vers l'image si nécessaire
+        $sheet->setCellValue("B$row", $apprenant['matricule']);
+        $sheet->setCellValue("C$row", $apprenant['prenom'] . ' ' . $apprenant['nom']);
+        $sheet->setCellValue("D$row", $apprenant['adresse']);
+        $sheet->setCellValue("E$row", $apprenant['telephone']);
+        $sheet->setCellValue("F$row", get_referentiel_by_id($apprenant['referentiel_id'])['titre'] ?? 'N/A');
+        $sheet->setCellValue("G$row", ucfirst($apprenant['status']));
+        $row++;
     }
 
-    return $apprenants;
-}
-
-function generateCSVTemplate()
-{
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment;filename="modele_import_apprenants.csv"');
+    $writer = new Xlsx($spreadsheet);
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="apprenants.xlsx"');
     header('Cache-Control: max-age=0');
-
-    $output = fopen('php://output', 'w');
-
-
-    fputcsv($output, [
-        'Prénom(s)',
-        'Nom',
-        'Date de naissance (YYYY-MM-DD)',
-        'Lieu de naissance',
-        'Adresse',
-        'Email',
-        'Téléphone',
-        'Nom du tuteur',
-        'Lien de parenté',
-        'Adresse du tuteur',
-        'Téléphone du tuteur',
-        'ID Référentiel'
-    ]);
-
-
-    fputcsv($output, [
-        'Jean',
-        'Dupont',
-        '2000-01-15',
-        'Paris',
-        '123 Rue Exemple',
-        'jean.dupont@example.com',
-        '0123456789',
-        'Marie Dupont',
-        'Mère',
-        '123 Rue Exemple',
-        '0987654321',
-        '1'
-    ]);
-
-    fclose($output);
+    $writer->save('php://output');
     exit;
 }
+
+function generatePdf($apprenants)
+{
+    $dompdf = new Dompdf();
+    $html = '<table border="1">
+                <tr>
+                    <th>Photo</th>
+                    <th>Matricule</th>
+                    <th>Nom Complet</th>
+                    <th>Adresse</th>
+                    <th>Téléphone</th>
+                    <th>Référentiel</th>
+                    <th>Statut</th>
+                </tr>';
+
+    foreach ($apprenants as $apprenant) {
+        $html .= '<tr>
+                    <td>Photo</td> <!-- Vous pouvez ajouter un lien vers l\'image si nécessaire -->
+                    <td>' . htmlspecialchars($apprenant['matricule']) . '</td>
+                    <td>' . htmlspecialchars($apprenant['prenom'] . ' ' . $apprenant['nom']) . '</td>
+                    <td>' . htmlspecialchars($apprenant['adresse']) . '</td>
+                    <td>' . htmlspecialchars($apprenant['telephone']) . '</td>
+                    <td>' . htmlspecialchars(get_referentiel_by_id($apprenant['referentiel_id'])['titre'] ?? 'N/A') . '</td>
+                    <td>' . htmlspecialchars(ucfirst($apprenant['status'])) . '</td>
+                  </tr>';
+    }
+
+    $html .= '</table>';
+
+    $dompdf->loadHtml($html);
+    $dompdf->setPaper('A4', 'landscape');
+    $dompdf->render();
+    $dompdf->stream("apprenants.pdf", ["Attachment" => true]);
+    exit;
+}
+?>

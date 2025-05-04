@@ -9,6 +9,10 @@ require_once __DIR__ . '/../Models/ref.model.php';
 require_once __DIR__ . '/../Services/session.service.php';
 require_once __DIR__ . '/../Services/validator.service.php';
 require_once __DIR__ . '/../Services/mail.service.php';
+require_once __DIR__ . '/../../vendor/autoload.php';
+
+use PhpOffice\PhpSpreadsheet\Spreadsheet;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 function handle_request_apprenant()
 {
@@ -51,6 +55,18 @@ function handle_request_apprenant()
 
             case 'liste-apprenant-par-referentiel':
                 handleListeApprenantParReferentiel();
+                break;
+
+            case 'upload-excel':
+                if (isset($_GET['download_template'])) {
+                    generate_example_excel();
+                    exit;
+                }
+                handle_upload_excel();
+                break;
+
+            case 'inscription-groupee':
+                handleInscriptionGroupee();
                 break;
 
             default:
@@ -268,4 +284,103 @@ function validate_apprenant_form($post_data, $files_data)
     }
 
     return $errors;
+}
+
+function handleInscriptionGroupee()
+{
+    $activePromo = getActivePromotion();
+
+    if (!$activePromo) {
+        $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
+        header('Location: ?page=promotions');
+        exit;
+    }
+
+    require_once __DIR__ . '/../Views/apprenants/inscription.groupe.php';
+}
+
+function handle_upload_excel()
+{
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['import_csv'])) {
+        $file = $_FILES['import_csv']['tmp_name'];
+        if (!is_uploaded_file($file)) {
+            $_SESSION['flash_message'] = "Fichier invalide";
+            header('Location: ?page=apprenant&action=inscription-groupee');
+            exit;
+        }
+
+        $activePromo = getActivePromotion();
+        if (!$activePromo) {
+            $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
+            header('Location: ?page=promotions');
+            exit;
+        }
+
+        $result = import_apprenants_from_excel($file, $activePromo['id']);
+
+        if ($result['success']) {
+            $_SESSION['flash_message'] = "Importation réussie. " . $result['imported'] . " apprenants importés.";
+            if (!empty($result['errors'])) {
+                $_SESSION['flash_message'] .= " Erreurs rencontrées : " . implode(', ', $result['errors']);
+            }
+        } else {
+            $_SESSION['flash_message'] = "Échec de l'importation : " . $result['message'];
+        }
+
+        header('Location: ?page=apprenant&action=liste-apprenant');
+        exit;
+    } else {
+        $_SESSION['flash_message'] = "Aucun fichier envoyé";
+        header('Location: ?page=apprenant&action=inscription-groupee');
+        exit;
+    }
+}
+
+function generate_example_excel()
+{
+    $spreadsheet = new Spreadsheet();
+    $sheet = $spreadsheet->getActiveSheet();
+
+
+    $headers = [
+        'prenom',
+        'nom',
+        'dateNaissance',
+        'lieuNaissance',
+        'adresse',
+        'email',
+        'telephone',
+        'tuteurNom',
+        'parente',
+        'tuteurAdresse',
+        'tuteurTelephone',
+        'referentiel'
+    ];
+
+
+    $sheet->fromArray($headers, null, 'A1');
+
+
+    $exampleData = [
+
+    ];
+
+    foreach ($exampleData as $rowIndex => $row) {
+        $sheet->fromArray($row, null, 'A' . ($rowIndex + 2));
+    }
+
+
+    foreach (range('A', 'L') as $columnID) {
+        $sheet->getColumnDimension($columnID)->setWidth(20);
+    }
+
+
+    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    header('Content-Disposition: attachment;filename="exemple_apprenants.xlsx"');
+    header('Cache-Control: max-age=0');
+
+
+    $writer = new Xlsx($spreadsheet);
+    $writer->save('php://output');
+    exit;
 }

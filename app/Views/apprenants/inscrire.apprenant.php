@@ -5,28 +5,73 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Ajout Apprenant</title>
-
 </head>
 
 <body>
     <div class="container">
-        <?php if (isset($_SESSION['flash_message'])): ?>
+        <?php
+        $flashMessage = getSessionMessage('flash_message');
+        $formErrors = getSessionMessage('form_errors') ?? [];
+        $formData = getFormData() ?? [];
+
+        if ($flashMessage): ?>
             <?php
-            $isSuccess = strpos($_SESSION['flash_message'], 'succès') !== false || strpos($_SESSION['flash_message'], 'Succès') !== false;
+            $isSuccess = $flashMessage && (strpos($flashMessage, 'succès') !== false || strpos($flashMessage, 'Succès') !== false);
             ?>
             <div class="alert alert-<?= $isSuccess ? 'success' : 'danger' ?>">
-                <?= $_SESSION['flash_message'] ?>
+                <?= $flashMessage ?>
             </div>
             <?php
-            unset($_SESSION['flash_message']);
 
-            // Si succès, on réinitialise les données du formulaire
             if ($isSuccess) {
-                unset($_SESSION['form_data']);
-                unset($_SESSION['form_errors']);
+                setFormData([]);
+                setSessionMessage('form_errors', []);
             }
             ?>
         <?php endif; ?>
+        <form action="?page=apprenant&action=upload-excel" method="post" enctype="multipart/form-data"
+            onsubmit="return resetFormOnSuccess(event)">
+            <div class="form-section">
+                <div class="section-title">Importation via CSV</div>
+
+                <label for="import_csv">Fichier CSV</label>
+                <input type="file" id="import_csv" name="import_csv" accept=".csv">
+
+                <label for="referentiel_id">Référentiel</label>
+                <select id="referentiel_id" name="referentiel_id" required>
+                    <option value="">Sélectionnez un référentiel</option>
+                    <?php if (isset($referentiels) && is_array($referentiels)): ?>
+                        <?php foreach ($referentiels as $referentiel): ?>
+                            <option value="<?= htmlspecialchars($referentiel['id']) ?>">
+                                <?= htmlspecialchars($referentiel['titre']) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php else: ?>
+                        <option disabled>Aucun référentiel disponible</option>
+                    <?php endif; ?>
+                </select>
+
+                <div class="form-text">
+                    Téléchargez notre
+                    <a href="?page=apprenant&action=upload-excel&download_template=1" class="link-primary">modèle
+                        CSV</a>
+                    pour garantir un format correct.
+                </div>
+
+                <button type="submit" name="upload_excel" class="btn btn-save">Importer le fichier</button>
+
+                <!-- Zone d'affichage des messages -->
+                <?php if (!empty($_SESSION['upload_message'])): ?>
+                    <div class="alert alert-success mt-2">
+                        <?= $_SESSION['upload_message'];
+                        unset($_SESSION['upload_message']); ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        </form>
+
+
+
 
         <!-- Import CSV -->
 
@@ -37,26 +82,24 @@
         <form action="?page=apprenant&action=save-apprenant" method="POST" enctype="multipart/form-data">
 
 
-            <!-- Infos apprenant -->
             <div class="form-section">
                 <div class="section-title">Informations de l'apprenant</div>
                 <div class="row">
                     <div>
                         <label for="prenom">Prénom(s)</label>
                         <input type="text" id="prenom" name="prenom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['prenom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['prenom'])): ?>
+                            value="<?= htmlspecialchars($formData['prenom'] ?? '') ?>">
+                        <?php if (isset($formErrors['prenom'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['prenom'] ?>
+                                <?= $formErrors['prenom'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
                         <label for="nom">Nom</label>
-                        <input type="text" id="nom" name="nom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['nom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['nom'])): ?>
+                        <input type="text" id="nom" name="nom" value="<?= htmlspecialchars($formData['nom'] ?? '') ?>">
+                        <?php if (isset($formErrors['nom'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['nom'] ?>
+                                <?= $formErrors['nom'] ?>
                             </div><?php endif; ?>
                     </div>
                 </div>
@@ -65,19 +108,19 @@
                     <div>
                         <label for="dateNaissance">Date de naissance</label>
                         <input type="text" id="dateNaissance" name="dateNaissance"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['dateNaissance'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['dateNaissance'])): ?>
+                            value="<?= htmlspecialchars($formData['dateNaissance'] ?? '') ?>">
+                        <?php if (isset($formErrors['dateNaissance'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['dateNaissance'] ?>
+                                <?= $formErrors['dateNaissance'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
                         <label for="lieuNaissance">Lieu de naissance</label>
                         <input type="text" id="lieuNaissance" name="lieuNaissance"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['lieuNaissance'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['lieuNaissance'])): ?>
+                            value="<?= htmlspecialchars($formData['lieuNaissance'] ?? '') ?>">
+                        <?php if (isset($formErrors['lieuNaissance'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['lieuNaissance'] ?>
+                                <?= $formErrors['lieuNaissance'] ?>
                             </div><?php endif; ?>
                     </div>
                 </div>
@@ -86,19 +129,19 @@
                     <div>
                         <label for="adresse">Adresse</label>
                         <input type="text" id="adresse" name="adresse"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['adresse'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['adresse'])): ?>
+                            value="<?= htmlspecialchars($formData['adresse'] ?? '') ?>">
+                        <?php if (isset($formErrors['adresse'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['adresse'] ?>
+                                <?= $formErrors['adresse'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
                         <label for="email">Email</label>
                         <input type="text" id="email" name="email"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['email'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['email'])): ?>
+                            value="<?= htmlspecialchars($formData['email'] ?? '') ?>">
+                        <?php if (isset($formErrors['email'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['email'] ?>
+                                <?= $formErrors['email'] ?>
                             </div><?php endif; ?>
                     </div>
                 </div>
@@ -107,10 +150,10 @@
                     <div>
                         <label for="telephone">Téléphone</label>
                         <input type="text" id="telephone" name="telephone"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['telephone'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['telephone'])): ?>
+                            value="<?= htmlspecialchars($formData['telephone'] ?? '') ?>">
+                        <?php if (isset($formErrors['telephone'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['telephone'] ?>
+                                <?= $formErrors['telephone'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
@@ -129,19 +172,19 @@
                     <div>
                         <label for="tuteurNom">Prénom(s) & nom</label>
                         <input type="text" id="tuteurNom" name="tuteurNom"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurNom'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurNom'])): ?>
+                            value="<?= htmlspecialchars($formData['tuteurNom'] ?? '') ?>">
+                        <?php if (isset($formErrors['tuteurNom'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurNom'] ?>
+                                <?= $formErrors['tuteurNom'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
                         <label for="parente">Lien de parenté</label>
                         <input type="text" id="parente" name="parente"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['parente'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['parente'])): ?>
+                            value="<?= htmlspecialchars($formData['parente'] ?? '') ?>">
+                        <?php if (isset($formErrors['parente'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['parente'] ?>
+                                <?= $formErrors['parente'] ?>
                             </div><?php endif; ?>
                     </div>
                 </div>
@@ -150,25 +193,25 @@
                     <div>
                         <label for="tuteurAdresse">Adresse</label>
                         <input type="text" id="tuteurAdresse" name="tuteurAdresse"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurAdresse'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurAdresse'])): ?>
+                            value="<?= htmlspecialchars($formData['tuteurAdresse'] ?? '') ?>">
+                        <?php if (isset($formErrors['tuteurAdresse'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurAdresse'] ?>
+                                <?= $formErrors['tuteurAdresse'] ?>
                             </div><?php endif; ?>
                     </div>
                     <div>
                         <label for="tuteurTelephone">Téléphone</label>
                         <input type="text" id="tuteurTelephone" name="tuteurTelephone"
-                            value="<?= htmlspecialchars($_SESSION['form_data']['tuteurTelephone'] ?? '') ?>">
-                        <?php if (isset($_SESSION['form_errors']['tuteurTelephone'])): ?>
+                            value="<?= htmlspecialchars($formData['tuteurTelephone'] ?? '') ?>">
+                        <?php if (isset($formErrors['tuteurTelephone'])): ?>
                             <div class="error">
-                                <?= $_SESSION['form_errors']['tuteurTelephone'] ?>
+                                <?= $formErrors['tuteurTelephone'] ?>
                             </div><?php endif; ?>
                     </div>
                 </div>
             </div>
 
-            <!-- Référentiel -->
+
             <div class="form-section">
                 <div class="section-title">Référentiel</div>
                 <label for="referentiel_id">Référentiel</label>
@@ -176,8 +219,7 @@
                     <option value="">Sélectionnez un référentiel</option>
                     <?php if (isset($referentiels) && is_array($referentiels)): ?>
                         <?php foreach ($referentiels as $referentiel): ?>
-                            <option value="<?= htmlspecialchars($referentiel['id']) ?>"
-                                <?= isset($_SESSION['form_data']['referentiel_id']) && $_SESSION['form_data']['referentiel_id'] == $referentiel['id'] ? 'selected' : '' ?>>
+                            <option value="<?= htmlspecialchars($referentiel['id']) ?>" <?= isset($formData['referentiel_id']) && $formData['referentiel_id'] == $referentiel['id'] ? 'selected' : '' ?>>
                                 <?= htmlspecialchars($referentiel['titre']) ?>
                             </option>
                         <?php endforeach; ?>
@@ -185,13 +227,13 @@
                         <option disabled>Aucun référentiel disponible</option>
                     <?php endif; ?>
                 </select>
-                <?php if (isset($_SESSION['form_errors']['referentiel_id'])): ?>
+                <?php if (isset($formErrors['referentiel_id'])): ?>
                     <div class="error">
-                        <?= $_SESSION['form_errors']['referentiel_id'] ?>
+                        <?= $formErrors['referentiel_id'] ?>
                     </div><?php endif; ?>
             </div>
 
-            <!-- Actions -->
+
             <div class="text-right">
                 <a href="?page=apprenant&action=liste-apprenant" class="btn btn-secondary">Annuler</a>
                 <button type="submit" class="btn btn-save">Enregistrer</button>
@@ -205,21 +247,26 @@
 
 
 
+
+
 <style>
     body {
         font-family: Arial, sans-serif;
         margin: 0;
         padding: 20px;
         background: #f9f9f9;
+        /* height: 100vh; */
     }
 
     .container {
-        max-width: 1000px;
+        min-width: 70%;
         margin: auto;
         background: #fff;
         padding: 20px;
         border-radius: 8px;
         box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+
+
     }
 
     .titre h1 {
@@ -231,6 +278,7 @@
         margin-top: 30px;
         border-top: 1px solid #ccc;
         padding-top: 20px;
+        /* max-height: 80%; */
     }
 
     .section-title {
