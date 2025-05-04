@@ -243,7 +243,7 @@ function get_apprenant_by_id($id)
 
     return null;
 }
-function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
+function import_apprenants_from_excel($filePath, $promotion_id, $referentiel_id)
 {
     error_log("Tentative d'import depuis: " . $filePath);
 
