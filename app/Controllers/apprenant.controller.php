@@ -53,14 +53,6 @@ function handle_request_apprenant()
                 handleListeApprenantParReferentiel();
                 break;
 
-            case 'upload-excel':
-                if (isset($_GET['download_template'])) {
-                    download_csv_template();
-                    exit;
-                }
-                handle_upload_excel();
-                break;
-
             default:
                 header('Location: ?page=apprenant&action=liste-apprenant');
                 exit;
@@ -69,8 +61,6 @@ function handle_request_apprenant()
         echo 'Erreur : ' . htmlspecialchars($e->getMessage());
     }
 }
-
-
 
 function handleListeApprenant()
 {
@@ -111,7 +101,6 @@ function handleListeApprenant()
     extract($viewData);
     require_once __DIR__ . '/../Views/apprenants/liste.apprenant.view.php';
 }
-
 
 function handleAdApprenant()
 {
@@ -257,11 +246,9 @@ function validate_apprenant_form($post_data, $files_data)
         }
     }
 
-
     if (!empty($post_data['email']) && !filter_var($post_data['email'], FILTER_VALIDATE_EMAIL)) {
         $errors['email'] = 'Email invalide';
     }
-
 
     $phone_pattern = '/^[0-9\+\-\s\(\)]{8,15}$/';
     if (!empty($post_data['telephone'])) {
@@ -273,7 +260,6 @@ function validate_apprenant_form($post_data, $files_data)
         }
     }
 
-
     if (!empty($post_data['dateNaissance'])) {
         $date = DateTime::createFromFormat('Y-m-d', $post_data['dateNaissance']);
         if (!$date || $date->format('Y-m-d') !== $post_data['dateNaissance']) {
@@ -282,100 +268,4 @@ function validate_apprenant_form($post_data, $files_data)
     }
 
     return $errors;
-}
-
-function download_csv_template()
-{
-    $filename = "modele_apprenant.csv";
-    header('Content-Type: text/csv');
-    header('Content-Disposition: attachment; filename="' . $filename . '"');
-
-    $out = fopen('php://output', 'w');
-
-    if (!$out) {
-        error_log("Erreur lors de l'ouverture du flux de sortie pour le fichier CSV.");
-        return;
-    }
-
-    // En-tête du CSV
-    $headers = [
-        'prenom',
-        'nom',
-        'date_naissance',
-        'lieu_naissance',
-        'adresse',
-        'email',
-        'telephone',
-        'tuteur_nom',
-        'tuteur_parente',
-        'tuteur_adresse',
-        'tuteur_telephone'
-    ];
-
-    // Écrire les en-têtes dans le fichier CSV
-    fputcsv($out, $headers, ';');
-
-    // Exemple de ligne
-    $exampleData = [
-        'Jean',
-        'Dupont',
-        '2000-01-15',
-        'Paris',
-        '12 Rue des Exemples',
-        'jean.dupont@example.com',
-        '771234567',
-        'Marie Dupont',
-        'Mère',
-        '12 Rue des Exemples',
-        '771234568'
-    ];
-
-    // Écrire l'exemple de ligne dans le fichier CSV
-    fputcsv($out, $exampleData, ';');
-
-    fclose($out);
-}
-
-function handle_upload_excel()
-{
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_FILES['import_csv'])) {
-        $file = $_FILES['import_csv']['tmp_name'];
-        if (!is_uploaded_file($file)) {
-            $_SESSION['flash_message'] = "Fichier invalide";
-            header('Location: ?page=apprenant&action=ad-apprenant');
-            exit;
-        }
-
-        $activePromo = getActivePromotion();
-        if (!$activePromo) {
-            $_SESSION['flash_message'] = "Aucune promotion active sélectionnée";
-            header('Location: ?page=promotions');
-            exit;
-        }
-
-        $referentiel_id = $_POST['referentiel_id'] ?? null;
-        if (!$referentiel_id) {
-            $_SESSION['flash_message'] = "Veuillez sélectionner un référentiel";
-            header('Location: ?page=apprenant&action=ad-apprenant');
-            exit;
-        }
-
-        $result = import_apprenants_from_csv($file, $activePromo['id'], $referentiel_id);
-
-        if ($result['success']) {
-            $_SESSION['flash_message'] = "Importation réussie. " . $result['imported'] . " apprenants importés.";
-            if (!empty($result['errors'])) {
-                $_SESSION['flash_message'] .= " Erreurs rencontrées : " . implode(', ', $result['errors']);
-            }
-        } else {
-            $_SESSION['flash_message'] = "Échec de l'importation : " . $result['message'];
-        }
-
-        header('Location: ?page=apprenant&action=liste-apprenant');
-        exit;
-    } else {
-        $_SESSION['flash_message'] = "Aucun fichier envoyé";
-        header('Location: ?page=apprenant&action=ad-apprenant');
-        exit;
-    }
 }

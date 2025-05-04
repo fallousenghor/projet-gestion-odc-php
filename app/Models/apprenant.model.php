@@ -15,7 +15,6 @@ function get_all_apprenant()
     return $data['apprenants'] ?? [];
 }
 
-
 function generateMatricule($apprenantData)
 {
     $initials = '';
@@ -224,6 +223,7 @@ function generateTemporaryPassword($length = 10)
     }
     return $password;
 }
+
 function get_apprenant_by_id($id)
 {
     $filePath = __DIR__ . '/../../public/data/data.json';
@@ -238,133 +238,8 @@ function get_apprenant_by_id($id)
     foreach ($data['apprenants'] as $apprenant) {
         if ($apprenant['id'] == $id) {
             return $apprenant;
-
         }
-
     }
 
     return null;
-}
-function import_apprenants_from_csv($filePath, $promotion_id, $referentiel_id)
-{
-    error_log("Tentative d'import depuis: " . $filePath);
-
-    if (!file_exists($filePath)) {
-        error_log("Fichier introuvable: " . $filePath);
-        return ['success' => false, 'message' => 'Fichier introuvable'];
-    }
-
-    $file = fopen($filePath, 'r');
-    if (!$file) {
-        error_log("Impossible d'ouvrir le fichier: " . $filePath);
-        return ['success' => false, 'message' => 'Erreur d\'ouverture'];
-    }
-
-    // Debug: Afficher le contenu brut
-    error_log("Contenu du fichier:\n" . file_get_contents($filePath));
-
-    // Lire l'en-tête (première ligne)
-    $headers = fgetcsv($file, 0, ';');
-    error_log("En-têtes lus: " . implode(', ', $headers));
-
-    // Vérifier que les colonnes obligatoires existent
-    $requiredColumns = ['prenom', 'nom', 'date_naissance', 'lieu_naissance', 'adresse', 'email', 'telephone', 'tuteur_nom', 'tuteur_parente', 'tuteur_adresse', 'tuteur_telephone'];
-    foreach ($requiredColumns as $col) {
-        if (!in_array($col, $headers)) {
-            return ['success' => false, 'message' => 'Colonne manquante: ' . $col];
-        }
-    }
-
-    $imported = 0;
-    $errors = [];
-    $lineNumber = 1; // On commence à 1 car l'en-tête est la ligne 0
-
-    while (($data = fgetcsv($file, 0, ';')) !== false) {
-        $lineNumber++;
-        $apprenantData = array_combine($headers, $data);
-
-        // Valider les données de la ligne
-        $validation = validate_apprenant_csv_data($apprenantData);
-        if (!$validation['isValid']) {
-            $errors[] = 'Ligne ' . $lineNumber . ': ' . implode(', ', $validation['errors']);
-            continue;
-        }
-
-        // Préparer les données de l'apprenant
-        $apprenant = [
-            'prenom' => trim($apprenantData['prenom']),
-            'nom' => trim($apprenantData['nom']),
-            'date_naissance' => trim($apprenantData['date_naissance']),
-            'lieu_naissance' => trim($apprenantData['lieu_naissance']),
-            'adresse' => trim($apprenantData['adresse']),
-            'email' => trim($apprenantData['email']),
-            'telephone' => trim($apprenantData['telephone']),
-            'status' => 'active',
-            'tuteur' => [
-                'nom' => trim($apprenantData['tuteur_nom']),
-                'lien_parente' => trim($apprenantData['tuteur_parente']),
-                'adresse' => trim($apprenantData['tuteur_adresse']),
-                'telephone' => trim($apprenantData['tuteur_telephone'])
-            ],
-            'promotion_id' => $promotion_id,
-            'referentiel_id' => $referentiel_id,
-            'documents' => [] // Les documents ne sont pas gérés dans l'import CSV
-        ];
-
-        if (!save_apprenant($apprenant)) {
-            $errors[] = 'Ligne ' . $lineNumber . ': Erreur lors de l\'enregistrement';
-        } else {
-            $imported++;
-        }
-    }
-
-    fclose($file);
-
-    return [
-        'success' => true,
-        'imported' => $imported,
-        'errors' => $errors
-    ];
-}
-
-
-
-function validate_apprenant_csv_data($data)
-{
-    $errors = [];
-
-
-    $requiredFields = [
-        'prenom',
-        'nom',
-        'date_naissance',
-        'lieu_naissance',
-        'adresse',
-        'email',
-        'telephone',
-        'tuteur_nom',
-        'tuteur_parente',
-        'tuteur_adresse',
-        'tuteur_telephone'
-    ];
-
-    foreach ($requiredFields as $field) {
-        if (empty(trim($data[$field] ?? ''))) {
-            $errors[] = "Le champ $field est requis";
-        }
-    }
-
-
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Email invalide";
-    }
-
-    if (!DateTime::createFromFormat('Y-m-d', $data['date_naissance'])) {
-        $errors[] = "Format de date invalide (doit être YYYY-MM-DD)";
-    }
-
-    return [
-        'isValid' => empty($errors),
-        'errors' => $errors
-    ];
 }
