@@ -143,11 +143,11 @@ function validate_apprenant_data(array $data): array
         'parente',
         'tuteurAdresse',
         'tuteurTelephone',
-        'referentiel_id'
+        'referentiel'
     ];
 
     foreach ($requiredFields as $field) {
-        if (empty($data[$field])) {
+        if (empty($data[$field]) || $data[$field] === null) {
             $errors[$field] = "Ce champ est obligatoire";
         }
     }
@@ -161,15 +161,16 @@ function validate_apprenant_data(array $data): array
         $errors['telephone'] = "Ce numéro de téléphone est déjà utilisé";
     }
 
-    // if (!preg_match('/^[0-9]{10,15}$/', $data['tuteurTelephone'] ?? '')) {
-    //     $errors['tuteurTelephone'] = "Numéro de téléphone du tuteur invalide";
-    // }
+    if (!getReferentielIdByName($data['referentiel']) && !referentiel_exists($data['referentiel'])) {
+        $errors['referentiel'] = "Référentiel invalide";
+    }
 
     return [
         'isValid' => empty($errors),
         'errors' => $errors
     ];
 }
+
 
 
 function emailExists($email)

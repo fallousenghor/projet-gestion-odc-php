@@ -1,24 +1,17 @@
 <?php
 
-function encode_json($data)
-{
-    $json = json_encode($data, JSON_PRETTY_PRINT);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception("Erreur lors de l'encodage JSON: " . json_last_error_msg());
-    }
-    return $json;
-}
+require_once __DIR__ . '/../utils/utils.php';
+
 
 function getAllPromotions()
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getPromoDataFilePath();
     if (!file_exists($filePath)) {
         return [];
     }
 
-    $data = json_decode(file_get_contents($filePath), true);
+    $data = decode_json(file_get_contents($filePath));
     $promotions = $data['promotions'] ?? [];
-
 
     foreach ($promotions as &$promo) {
         $promo['apprenants_count'] = count_apprenants_by_promotion($promo['id']);
@@ -29,9 +22,9 @@ function getAllPromotions()
 
 function deactivateAllPromotionsExcept($promotionId)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getPromoDataFilePath();
     $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $data = decode_json($json);
 
     foreach ($data['promotions'] as &$promo) {
         if ($promo['id'] != $promotionId) {
@@ -44,9 +37,9 @@ function deactivateAllPromotionsExcept($promotionId)
 
 function addPromotion($newPromo)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getPromoDataFilePath();
     $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $data = decode_json($json);
 
     $newId = ($data['last_id'] ?? 0) + 1;
     $newPromo['id'] = $newId;
@@ -61,8 +54,8 @@ function addPromotion($newPromo)
 
 function getCurrentPromotions()
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : ['promotions' => []];
+    $filePath = getPromoDataFilePath();
+    $data = file_exists($filePath) ? decode_json(file_get_contents($filePath)) : ['promotions' => []];
 
     $currentDate = date('d-m-Y');
     $currentPromotions = [];
@@ -78,12 +71,12 @@ function getCurrentPromotions()
 
 function getNextPromoId()
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getPromoDataFilePath();
     if (!file_exists($filePath)) {
         return 1;
     }
     $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $data = decode_json($json);
     return ($data['last_id'] ?? 0) + 1;
 }
 
@@ -111,9 +104,9 @@ function getActivePromotion()
 
 function updatePromotionStatus($promotionId, $newStatus)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getPromoDataFilePath();
     $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $data = decode_json($json);
 
     foreach ($data['promotions'] as &$promo) {
         if ($promo['id'] == $promotionId) {
@@ -138,9 +131,8 @@ function getPromotionById($promotionId)
 
 function count_apprenants_by_promotion($promotion_id)
 {
-
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+    $filePath = getPromoDataFilePath();
+    $data = file_exists($filePath) ? decode_json(file_get_contents($filePath)) : [];
     $apprenants = $data['apprenants'] ?? [];
 
     $count = 0;

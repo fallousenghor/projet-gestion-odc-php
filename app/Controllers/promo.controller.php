@@ -1,76 +1,107 @@
 <?php
-require_once __DIR__ . '/../Services/session.service.php';
-require_once __DIR__ . '/../Models/promo.model.php';
-require_once __DIR__ . '/../Controllers/ref.controller.php';
-require_once __DIR__ . '/../Controllers/controller.php';
-require_once __DIR__ . '/../Services/validator.service.php';
-require_once __DIR__ . '/../Models/apprenant.model.php';
+require_once __DIR__ . '/../utils/utils.php';
+
 function handlePromoListAction()
 {
     $searchTerm = $_GET['search'] ?? '';
+    $itemsPerPage = 6;
+    $currentPage = isset($_GET['page_num']) ? max((int) $_GET['page_num'], 1) : 1;
+
+    $offset = ($currentPage - 1) * $itemsPerPage;
     $allPromotions = getAllPromotions();
     $allPromotions = searchItems($allPromotions, $searchTerm);
+
+    $totalPromotions = count($allPromotions);
+    $promotions = array_slice($allPromotions, $offset, $itemsPerPage);
+    $totalPages = max(ceil($totalPromotions / $itemsPerPage), 1);
+
     $activePromo = getActivePromotion();
     $stats = calculateStatistics($activePromo, $allPromotions);
 
 
     $viewData = [
-        'promotions' => $allPromotions,
+        // 'promotions' => $promotionsForPage,
         'activePromo' => $activePromo,
         'totalApprenants' => $stats['apprenants'],
-        'currentPage' => $_GET['page_num'] ?? 1,
-        'totalPages' => max(ceil(count($allPromotions) / 5), 1),
+        'currentPage' => $currentPage,
+        'totalPages' => $totalPages,
         'searchTerm' => $searchTerm
     ];
 
-
     extract($viewData);
-
     require_once __DIR__ . '/../Views/promotions/promo.liste.view.php';
 }
-
 function handleTogglePromoAction()
 {
     $promoId = $_GET['id'] ?? null;
 
     if ($promoId) {
-        $filePath = __DIR__ . '/../../public/data/data.json';
+        $filePath = getPromoDataFilePath();
+
         if (file_exists($filePath)) {
-            $json = file_get_contents($filePath);
-            $data = json_decode($json, true);
+            $data = readPromoDataFromFile($filePath);
 
             if (isset($data['promotions'])) {
-                $promoEnCours = null;
-
-                foreach ($data['promotions'] as &$promo) {
-                    if ($promo['id'] == $promoId) {
-                        if ($promo['statut'] === 'Inactive') {
-                            foreach ($data['promotions'] as &$p) {
-                                $p['statut'] = 'Inactive';
-                            }
-                            $promo['statut'] = 'Actif';
-                        } else {
-                            $promo['statut'] = 'Inactive';
-                        }
-                        $promoEnCours = $promo;
-                        break;
-                    }
-                }
+                $promoEnCours = togglePromotionStatus($data['promotions'], $promoId);
 
                 if ($promoEnCours) {
-                    $data['promotions'] = array_filter($data['promotions'], fn($p) => $p['id'] != $promoEnCours['id']);
-                    if ($promoEnCours['statut'] === 'Actif') {
-                        array_unshift($data['promotions'], $promoEnCours);
-                    } else {
-                        $data['promotions'][] = $promoEnCours;
-                    }
+                    reorderPromotions($data['promotions'], $promoEnCours);
+                    savePromoDataToFile($filePath, $data);
                 }
-
-                file_put_contents($filePath, encode_json($data));
             }
         }
     }
 
+    redirectToPromoList();
+}
+
+
+function readPromoDataFromFile(string $filePath): array
+{
+    $json = file_get_contents($filePath);
+    return json_decode($json, true);
+}
+
+function togglePromotionStatus(array &$promotions, string $promoId): ?array
+{
+    $promoEnCours = null;
+
+    foreach ($promotions as &$promo) {
+        if ($promo['id'] == $promoId) {
+            if ($promo['statut'] === TextPromo::INACTIF->value) {
+                foreach ($promotions as &$p) {
+                    $p['statut'] = TextPromo::INACTIF->value;
+                }
+                $promo['statut'] = TextPromo::ACTIF->value;
+            } else {
+                $promo['statut'] = TextPromo::INACTIF->value;
+            }
+            $promoEnCours = $promo;
+            break;
+        }
+    }
+
+    return $promoEnCours;
+}
+
+function reorderPromotions(array &$promotions, array $promoEnCours): void
+{
+    $promotions = array_filter($promotions, fn($p) => $p['id'] != $promoEnCours['id']);
+
+    if ($promoEnCours['statut'] === TextPromo::ACTIF->value) {
+        array_unshift($promotions, $promoEnCours);
+    } else {
+        $promotions[] = $promoEnCours;
+    }
+}
+
+function savePromoDataToFile(string $filePath, array $data): void
+{
+    file_put_contents($filePath, encode_json($data));
+}
+
+function redirectToPromoList(): void
+{
     header('Location: ?page=promotions&action=liste-promo');
     exit;
 }
@@ -78,57 +109,92 @@ function handleTogglePromoAction()
 function handleAddPromoAction()
 {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $formData = [
-            'nom' => trim($_POST['nom'] ?? ''),
-            'debut' => trim($_POST['debut'] ?? ''),
-            'fin' => trim($_POST['fin'] ?? ''),
-            'referentiels' => $_POST['referentiels'] ?? []
-        ];
-
+        $formData = collectPromoFormData();
         $validation = validatePromotionData($formData, $_FILES);
 
         if (!$validation['isValid']) {
-            setSessionMessage('form_errors', $validation['errors']);
+            handleValidationErrors($validation['errors'], $formData);
+        }
+
+        $imagePath = handlePromoImageUpload($_FILES, $formData);
+
+        $newPromo = preparePromoData($formData, $imagePath);
+
+        if (!addPromotion($newPromo)) {
+            handlePromoCreationError();
+        }
+
+        handlePromoCreationSuccess();
+    }
+
+    renderPromoFormView();
+}
+
+function collectPromoFormData(): array
+{
+    return [
+        'nom' => trim($_POST['nom'] ?? ''),
+        'debut' => trim($_POST['debut'] ?? ''),
+        'fin' => trim($_POST['fin'] ?? ''),
+        'referentiels' => $_POST['referentiels'] ?? []
+    ];
+}
+
+function handleValidationErrors(array $errors, array $formData): void
+{
+    setSessionMessage('form_errors', $errors);
+    setSessionMessage('form_data', $formData);
+    header('Location: ?page=promotions&action=add-promo');
+    exit;
+}
+
+function handlePromoImageUpload(array $files, array $formData): string
+{
+    if (isset($files['photo']) && $files['photo']['error'] === UPLOAD_ERR_OK) {
+        $imagePath = uploadImage($files['photo']);
+        if (!$imagePath) {
+            setSessionMessage('form_errors', [TextPromo::ERREUR_TELECHARGEMENT_IMAGE->value]);
             setSessionMessage('form_data', $formData);
             header('Location: ?page=promotions&action=add-promo');
             exit;
         }
-
-        $imagePath = '';
-        if (isset($_FILES['photo']) && $_FILES['photo']['error'] === UPLOAD_ERR_OK) {
-            $imagePath = uploadImage($_FILES['photo']);
-            if (!$imagePath) {
-                setSessionMessage('form_errors', ['photo' => 'Erreur lors du téléchargement de l\'image']);
-                setSessionMessage('form_data', $formData);
-                header('Location: ?page=promotions&action=add-promo');
-                exit;
-            }
-        }
-
-        $newPromo = [
-            'titre' => $formData['nom'],
-            'image' => $imagePath,
-            'date_debut' => $formData['debut'],
-            'date_fin' => $formData['fin'],
-            'referentiels' => $formData['referentiels'],
-            'statut' => 'Inactive',
-            'apprenants' => 0,
-
-        ];
-
-        if (!addPromotion($newPromo)) {
-            setSessionMessage('error_message', 'Erreur lors de la création de la promotion');
-            header('Location: ?page=promotions&action=add-promo');
-            exit;
-        }
-
-        setSessionMessage('success_message', 'Promotion créée avec succès');
-        header('Location: ?page=promotions&action=liste-promo');
-        exit;
+        return $imagePath;
     }
+    return '';
+}
 
+function preparePromoData(array $formData, string $imagePath): array
+{
+    return [
+        'titre' => $formData['nom'],
+        'image' => $imagePath,
+        'date_debut' => $formData['debut'],
+        'date_fin' => $formData['fin'],
+        'referentiels' => $formData['referentiels'],
+        'statut' => TextPromo::INACTIF->value,
+        'apprenants' => 0,
+    ];
+}
+
+function handlePromoCreationError(): void
+{
+    setSessionMessage('error_message', TextPromo::ERREUR_CREATION_PROMOTION->value);
+    header('Location: ?page=promotions&action=add-promo');
+    exit;
+}
+
+function handlePromoCreationSuccess(): void
+{
+    setSessionMessage('success_message', TextPromo::SUCCES_CREATION_PROMOTION->value);
+    header('Location: ?page=promotions&action=liste-promo');
+    exit;
+}
+
+function renderPromoFormView(): void
+{
     require_once __DIR__ . '/../Views/promotions/promo.form.view.php';
 }
+
 
 function handlePromoListPaginatedAction()
 {
@@ -149,12 +215,11 @@ function handlePromoListPaginatedAction()
 
     require_once __DIR__ . '/../Views/promotions/promo.af.liste.view.php';
 }
+
 function calculateStatistics($activePromo, $allPromotions)
 {
-
     $apprenants = 0;
     if ($activePromo) {
-
         $apprenants = count_apprenants_by_promotion($activePromo['id']);
     }
 
@@ -168,9 +233,10 @@ function calculateStatistics($activePromo, $allPromotions)
         'total_promotions' => count($allPromotions)
     ];
 }
+
 function handleDefaultPromoAction()
 {
-    show404Error("Erreur : l'action demandée n'existe pas dans le module des promotions.");
+    show404Error(TextPromo::ERREUR_ACTION_INEXISTANTE->value);
 }
 
 function handle_request_promo()
@@ -184,6 +250,7 @@ function handle_request_promo()
         switch ($action) {
             case 'liste-promo':
                 handlePromoListAction();
+
                 break;
             case 'toggle-promo':
                 handleTogglePromoAction();
@@ -199,12 +266,11 @@ function handle_request_promo()
                 break;
         }
     } catch (Exception $e) {
-        setSessionMessage('error_message', 'Une erreur est survenue: ' . $e->getMessage());
+        setSessionMessage('error_message', TextPromo::ERREUR_SURVENUE->value . $e->getMessage());
         header('Location: ?page=promotions&action=liste-promo');
         exit;
     }
 }
-
 
 if (basename(__FILE__) == basename($_SERVER["SCRIPT_FILENAME"])) {
     handle_request_promo();

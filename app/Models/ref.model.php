@@ -2,40 +2,33 @@
 
 function get_all_ref()
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
-
+    $filePath = getReferentielsFilePath();
 
     if (!file_exists($filePath)) {
         if (!is_writable(dirname($filePath))) {
-            throw new Exception("Le répertoire de données n'est pas accessible en écriture");
+            throw new Exception(MessageReferentiel::REPERTOIRE_NON_ACCESSIBLE->value);
         }
 
         $initialData = ['referentiels' => [], 'last_id' => 0];
-        if (file_put_contents($filePath, json_encode($initialData)) === false) {
-            throw new Exception("Impossible de créer le fichier de données");
+        if (file_put_contents($filePath, encode_json($initialData)) === false) {
+            throw new Exception(MessageReferentiel::IMPOSSIBLE_CREER_FICHIER->value);
         }
         return [];
     }
 
-
     if (!is_readable($filePath)) {
-        throw new Exception("Le fichier de données n'est pas accessible en lecture");
+        throw new Exception(MessageReferentiel::FICHIER_NON_LECTURE->value);
     }
-
 
     $json = file_get_contents($filePath);
     if ($json === false) {
-        throw new Exception("Impossible de lire le fichier de données");
+        throw new Exception(MessageReferentiel::FICHIER_NON_LISIBLE->value);
     }
 
-
-    $data = json_decode($json, true);
-    if (json_last_error() !== JSON_ERROR_NONE) {
-        throw new Exception("Erreur de format dans le fichier JSON: " . json_last_error_msg());
-    }
-
+    $data = decode_json($json);
     return $data['referentiels'] ?? [];
 }
+
 
 function get_referentiel_by_id($id)
 {
@@ -98,9 +91,8 @@ function referentiel_exists($nom)
 
 function count_apprenants_by_referentiel($referentiel_id)
 {
-
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+    $filePath = getReferentielsFilePath();
+    $data = file_exists($filePath) ? decode_json(file_get_contents($filePath)) : [];
     $apprenants = $data['apprenants'] ?? [];
 
     $count = 0;
@@ -114,8 +106,8 @@ function count_apprenants_by_referentiel($referentiel_id)
 
 function has_apprenants_in_referentiel($referentiel_id, $promotion_id)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+    $filePath = getReferentielsFilePath();
+    $data = file_exists($filePath) ? decode_json(file_get_contents($filePath)) : [];
     $apprenants = $data['apprenants'] ?? [];
 
     foreach ($apprenants as $apprenant) {
@@ -131,9 +123,8 @@ function has_apprenants_in_referentiel($referentiel_id, $promotion_id)
 
 function count_apprenants_in_referentiel($referentiel_id, $promotion_id)
 {
-
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+    $filePath = getReferentielsFilePath();
+    $data = file_exists($filePath) ? decode_json(file_get_contents($filePath)) : [];
     $apprenants = $data['apprenants'] ?? [];
 
     $count = 0;

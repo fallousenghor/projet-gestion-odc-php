@@ -19,7 +19,7 @@
             $activePromo = $activePromo ?? [];
             $referentiels = $referentiels ?? [];
             $promoState = $activePromo['etat'] ?? 'indetermine';
-            $isTerminee = ($promoState === 'termine'); // Seulement vrai si terminée
+            $isTerminee = ($promoState === 'termine'); 
             
             $stateLabels = [
                 'pas_commence' => 'À venir',
@@ -103,14 +103,12 @@
 
             <div class="buttons-container">
                 <?php if (!$isTerminee): ?>
-                <a href="#">
-                    <button type="submit" name="submit_type" value="validate" class="btn btn-validate">
-                        <i class="fas fa-save"></i> Valider
-                    </button>
-                </a>
-                <button type="submit" name="submit_type" value="finish" class="btn btn-finish">
-                    <i class="fas fa-check-circle"></i> Terminer
+
+                <button type="submit" name="submit_type" value="validate" class="btn btn-validate">
+                    <i class="fas fa-save"></i> Valider
                 </button>
+
+
                 <?php else: ?>
                 <div class="alert-info">
                     <i class="fas fa-info-circle"></i>

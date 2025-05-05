@@ -1,4 +1,12 @@
-<?php require '../app/Views/layout/base.layout.php'; ?>
+<?php
+require '../app/Views/layout/base.layout.php';
+require_once __DIR__ . '/../../utils/utils.php';
+
+if (isset($_GET['download_pdf'])) {
+    generateApprenantsPDF($apprenants);
+    exit;
+}
+?>
 
 <body>
     <div class="container-app">
@@ -28,12 +36,11 @@
                 <button type="submit" class="btn-r">Rechercher</button>
             </form>
 
-
             <div class="hedader-right">
                 <a href="?page=apprenant&action=inscription-groupee" class="telechage-liste excel">Importer un
                     fichier</a>
-
-                <a href="" class="telechage-liste">Télécharger la liste</a>
+                <a href="?page=apprenant&action=download_pdf" class="telechage-liste">Télécharger la
+                    liste</a>
                 <a href="?page=apprenant&action=ad-apprenant" class="liste-apprenant">Ajouter un apprenant</a>
             </div>
         </div>
@@ -66,12 +73,10 @@
                                 <td>
                                     <?= htmlspecialchars($apprenant['prenom'] ?? '') ?>
                                     <?= htmlspecialchars($apprenant['nom'] ?? '') ?>
-
                                 </td>
                                 <td><?= htmlspecialchars($apprenant['adresse'] ?? '') ?></td>
                                 <td><?= htmlspecialchars($apprenant['telephone'] ?? '') ?></td>
                                 <td>
-
                                     <span
                                         class="badge ref-badge ref-<?= strtolower(get_referentiel_code($apprenant['referentiel_id'])) ?>">
                                         <?= htmlspecialchars(get_referentiel_by_id($apprenant['referentiel_id'])['titre'] ?? 'N/A') ?>
@@ -87,7 +92,6 @@
                                         <button class="action-menu">•••</button>
                                     </a>
                                 </td>
-
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -128,6 +132,7 @@
         </div>
     </div>
 </body>
+
 
 
 <style>

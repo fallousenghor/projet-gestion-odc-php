@@ -1,17 +1,18 @@
 <?php
 
+require_once __DIR__ . '/../utils/utils.php';
+
+
 function get_all_apprenant()
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getDataFilePath();
 
     if (!file_exists($filePath)) {
-        file_put_contents($filePath, json_encode(['apprenants' => [], 'last_id' => 0]));
+        writeJsonFile($filePath, ['apprenants' => [], 'last_id' => 0]);
         return [];
     }
 
-    $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
-
+    $data = readJsonFile($filePath);
     return $data['apprenants'] ?? [];
 }
 
@@ -31,9 +32,8 @@ function generateMatricule($apprenantData)
 
     $datePart = date('Ym');
 
-    $filePath = __DIR__ . '/../../public/data/data.json';
-    $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $filePath = getDataFilePath();
+    $data = readJsonFile($filePath);
     $last_id = $data['last_id'] ?? 0;
     $seq = str_pad($last_id + 1, 4, '0', STR_PAD_LEFT);
 
@@ -44,14 +44,13 @@ function generateMatricule($apprenantData)
 
 function save_apprenant($apprenant)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getDataFilePath();
 
     if (!file_exists($filePath)) {
-        file_put_contents($filePath, json_encode(['apprenants' => [], 'last_id' => 0, 'promotions' => [], 'referentiels' => []]));
+        writeJsonFile($filePath, ['apprenants' => [], 'last_id' => 0, 'promotions' => [], 'referentiels' => []]);
         $data = ['apprenants' => [], 'last_id' => 0, 'promotions' => [], 'referentiels' => []];
     } else {
-        $json = file_get_contents($filePath);
-        $data = json_decode($json, true);
+        $data = readJsonFile($filePath);
     }
 
     $last_id = $data['last_id'] ?? 0;
@@ -68,7 +67,7 @@ function save_apprenant($apprenant)
     $data['apprenants'][] = $apprenant;
     $data['last_id'] = $new_id;
 
-    $saved = file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT)) !== false;
+    $saved = writeJsonFile($filePath, $data);
 
     if ($saved) {
         $loginUrl = 'http://senghor.fallou.sa.edu.sn/projet/';
@@ -226,14 +225,13 @@ function generateTemporaryPassword($length = 10)
 
 function get_apprenant_by_id($id)
 {
-    $filePath = __DIR__ . '/../../public/data/data.json';
+    $filePath = getDataFilePath();
 
     if (!file_exists($filePath)) {
         return null;
     }
 
-    $json = file_get_contents($filePath);
-    $data = json_decode($json, true);
+    $data = readJsonFile($filePath);
 
     foreach ($data['apprenants'] as $apprenant) {
         if ($apprenant['id'] == $id) {
@@ -243,126 +241,40 @@ function get_apprenant_by_id($id)
 
     return null;
 }
-function import_apprenants_from_excel($filePath, $promotion_id, $referentiel_id)
+
+
+
+
+
+
+function getReferentielIdByName($referentielName)
 {
-    error_log("Tentative d'import depuis: " . $filePath);
-
-    if (!file_exists($filePath)) {
-        error_log("Fichier introuvable: " . $filePath);
-        return ['success' => false, 'message' => 'Fichier introuvable'];
-    }
-
-    $file = fopen($filePath, 'r');
-    if (!$file) {
-        error_log("Impossible d'ouvrir le fichier: " . $filePath);
-        return ['success' => false, 'message' => 'Erreur d\'ouverture'];
-    }
-
-    // Debug: Afficher le contenu brut
-    error_log("Contenu du fichier:\n" . file_get_contents($filePath));
-
-    // Lire l'en-tête (première ligne)
-    $headers = fgetcsv($file, 0, ';');
-    error_log("En-têtes lus: " . implode(', ', $headers));
-
-    // Vérifier que les colonnes obligatoires existent
-    $requiredColumns = ['prenom', 'nom', 'date_naissance', 'lieu_naissance', 'adresse', 'email', 'telephone', 'tuteur_nom', 'tuteur_parente', 'tuteur_adresse', 'tuteur_telephone'];
-    foreach ($requiredColumns as $col) {
-        if (!in_array($col, $headers)) {
-            return ['success' => false, 'message' => 'Colonne manquante: ' . $col];
+    $referentiels = get_all_ref();
+    foreach ($referentiels as $referentiel) {
+        if (strtolower(trim($referentiel['titre'])) === strtolower(trim($referentielName))) {
+            return $referentiel['id'];
         }
     }
-
-    $imported = 0;
-    $errors = [];
-    $lineNumber = 1; // On commence à 1 car l'en-tête est la ligne 0
-
-    while (($data = fgetcsv($file, 0, ';')) !== false) {
-        $lineNumber++;
-        $apprenantData = array_combine($headers, $data);
-
-        // Valider les données de la ligne
-        $validation = validate_apprenant_csv_data($apprenantData);
-        if (!$validation['isValid']) {
-            $errors[] = 'Ligne ' . $lineNumber . ': ' . implode(', ', $validation['errors']);
-            continue;
-        }
-
-        // Préparer les données de l'apprenant
-        $apprenant = [
-            'prenom' => trim($apprenantData['prenom']),
-            'nom' => trim($apprenantData['nom']),
-            'date_naissance' => trim($apprenantData['date_naissance']),
-            'lieu_naissance' => trim($apprenantData['lieu_naissance']),
-            'adresse' => trim($apprenantData['adresse']),
-            'email' => trim($apprenantData['email']),
-            'telephone' => trim($apprenantData['telephone']),
-            'status' => 'active',
-            'tuteur' => [
-                'nom' => trim($apprenantData['tuteur_nom']),
-                'lien_parente' => trim($apprenantData['tuteur_parente']),
-                'adresse' => trim($apprenantData['tuteur_adresse']),
-                'telephone' => trim($apprenantData['tuteur_telephone'])
-            ],
-            'promotion_id' => $promotion_id,
-            'referentiel_id' => $referentiel_id,
-            'documents' => [] // Les documents ne sont pas gérés dans l'import CSV
-        ];
-
-        if (!save_apprenant($apprenant)) {
-            $errors[] = 'Ligne ' . $lineNumber . ': Erreur lors de l\'enregistrement';
-        } else {
-            $imported++;
-        }
-    }
-
-    fclose($file);
-
-    return [
-        'success' => true,
-        'imported' => $imported,
-        'errors' => $errors
-    ];
+    return null;
 }
 
+// function createReferentiel($referentielName)
+// {
+//     $referentiels = get_all_ref();
+//     $new_id = count($referentiels) + 1;
+//     $new_referentiel = [
+//         'id' => $new_id,
+//         'titre' => $referentielName
+//     ];
+//     $referentiels[] = $new_referentiel;
+//     save_referentiels($referentiels);
+//     return $new_id;
+// }
 
-
-function validate_apprenant_csv_data($data)
-{
-    $errors = [];
-
-
-    $requiredFields = [
-        'prenom',
-        'nom',
-        'date_naissance',
-        'lieu_naissance',
-        'adresse',
-        'email',
-        'telephone',
-        'tuteur_nom',
-        'tuteur_parente',
-        'tuteur_adresse',
-        'tuteur_telephone'
-    ];
-
-    foreach ($requiredFields as $field) {
-        if (empty(trim($data[$field] ?? ''))) {
-            $errors[] = "Le champ $field est requis";
-        }
-    }
-
-
-    if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = "Email invalide";
-    }
-
-    if (!DateTime::createFromFormat('Y-m-d', $data['date_naissance'])) {
-        $errors[] = "Format de date invalide (doit être YYYY-MM-DD)";
-    }
-
-    return [
-        'isValid' => empty($errors),
-        'errors' => $errors
-    ];
-}
+// function save_referentiels($referentiels)
+// {
+//     $filePath = __DIR__ . '/../../public/data/data.json';
+//     $data = file_exists($filePath) ? json_decode(file_get_contents($filePath), true) : [];
+//     $data['referentiels'] = $referentiels;
+//     file_put_contents($filePath, json_encode($data, JSON_PRETTY_PRINT));
+// }

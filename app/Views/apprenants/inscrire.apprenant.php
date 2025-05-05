@@ -29,51 +29,7 @@
             }
             ?>
         <?php endif; ?>
-        <form action="?page=apprenant&action=upload-excel" method="post" enctype="multipart/form-data"
-            onsubmit="return resetFormOnSuccess(event)">
-            <div class="form-section">
-                <div class="section-title">Importation via CSV</div>
 
-                <label for="import_csv">Fichier CSV</label>
-                <input type="file" id="import_csv" name="import_csv" accept=".csv">
-
-                <label for="referentiel_id">Référentiel</label>
-                <select id="referentiel_id" name="referentiel_id" required>
-                    <option value="">Sélectionnez un référentiel</option>
-                    <?php if (isset($referentiels) && is_array($referentiels)): ?>
-                        <?php foreach ($referentiels as $referentiel): ?>
-                            <option value="<?= htmlspecialchars($referentiel['id']) ?>">
-                                <?= htmlspecialchars($referentiel['titre']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    <?php else: ?>
-                        <option disabled>Aucun référentiel disponible</option>
-                    <?php endif; ?>
-                </select>
-
-                <div class="form-text">
-                    Téléchargez notre
-                    <a href="?page=apprenant&action=upload-excel&download_template=1" class="link-primary">modèle
-                        CSV</a>
-                    pour garantir un format correct.
-                </div>
-
-                <button type="submit" name="upload_excel" class="btn btn-save">Importer le fichier</button>
-
-                <!-- Zone d'affichage des messages -->
-                <?php if (!empty($_SESSION['upload_message'])): ?>
-                    <div class="alert alert-success mt-2">
-                        <?= $_SESSION['upload_message'];
-                        unset($_SESSION['upload_message']); ?>
-                    </div>
-                <?php endif; ?>
-            </div>
-        </form>
-
-
-
-
-        <!-- Import CSV -->
 
         <div class="titre">
             <h1>Ajout apprenant</h1>

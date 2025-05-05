@@ -155,10 +155,10 @@
         <ul class="pagination">
             <li class="<?= $currentPage == 1 ? 'disabled' : '' ?>">
                 <?php if ($currentPage > 1): ?>
-                    <a a href="?page=promotions&action=liste-promo&page_num=<?= $currentPage - 1 ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>"
-                        class="arrow"><i class='bx bx-chevron-left'></i></a>
+                    <a href="?page=promotions&action=liste-promo&page_num=<?= $currentPage - 1 ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>"
+                        class="arrow">&laquo;</a>
                 <?php else: ?>
-                    <span class="arrow"><i class='bx bx-chevron-left'></i></span>
+                    <span class="arrow">&laquo;</span>
                 <?php endif; ?>
             </li>
 
@@ -169,18 +169,16 @@
             for ($i = $startPage; $i <= $endPage; $i++): ?>
                 <li class="<?= $i == $currentPage ? 'active' : '' ?>">
                     <a
-                        href="?page=promotions&action=liste-promo&page_num=<?= $i ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>">
-                        <?= $i ?>
-                    </a>
+                        href="?page=promotions&action=liste-promo&page_num=<?= $i ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>"><?= $i ?></a>
                 </li>
             <?php endfor; ?>
 
             <li class="<?= $currentPage == $totalPages ? 'disabled' : '' ?>">
                 <?php if ($currentPage < $totalPages): ?>
-                    <a a href="?page=promotions&action=liste-promo&page_num=<?= $currentPage + 1 ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>"
-                        class="arrow"><i class='bx bx-chevron-right'></i></a>
+                    <a href="?page=promotions&action=liste-promo&page_num=<?= $currentPage + 1 ?><?= !empty($_GET['search']) ? '&search=' . urlencode($_GET['search']) : '' ?>"
+                        class="arrow">&raquo;</a>
                 <?php else: ?>
-                    <span class="arrow"><i class='bx bx-chevron-right'></i></span>
+                    <span class="arrow">&raquo;</span>
                 <?php endif; ?>
             </li>
         </ul>

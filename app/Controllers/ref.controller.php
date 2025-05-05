@@ -1,11 +1,6 @@
 <?php
-require_once __DIR__ . '/../Services/session.service.php';
-require_once __DIR__ . '/../Models/ref.model.php';
-require_once __DIR__ . '/../Controllers/controller.php';
-require_once __DIR__ . '/../Models/promo.model.php';
-require_once __DIR__ . '/../Services/validator.service.php';
-require_once __DIR__ . '/../Services/PromoStateService.php';
-
+require_once __DIR__ . '/../utils/utils.php';
+// require_once __DIR__ . '/../translate/fr/message.fr.php';
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
@@ -21,6 +16,7 @@ function handle_request_ref()
     }
 }
 
+
 function getRequestAction(): string
 {
     return isset($_GET['action']) ? htmlspecialchars($_GET['action']) : 'liste-ref';
@@ -33,21 +29,38 @@ function handleListeRef(): void
     $paginationData = getPaginationData();
 
     if ($activePromo) {
-        $allReferentiels = get_referentiels_by_promo_id($activePromo['referentiels']);
-
-        $allReferentiels = array_map(function ($ref) {
-            $ref['apprenants_count'] = count_apprenants_by_referentiel($ref['id']);
-            return $ref;
-        }, $allReferentiels);
-
-        $allReferentiels = searchReferentiels($allReferentiels, $searchTerm);
-        $referentiels = paginateItems($allReferentiels, $paginationData);
-        $totalPages = calculateTotalPages(count($allReferentiels), $paginationData['itemsPerPage']);
+        $referentiels = getPreparedReferentiels($activePromo['referentiels'], $searchTerm, $paginationData);
+        $totalPages = calculateTotalPages(countAllReferentielsByPromo($activePromo['referentiels'], $searchTerm), $paginationData['itemsPerPage']);
     } else {
         $referentiels = [];
         $totalPages = 1;
     }
 
+    displayReferentielsListView($referentiels, $totalPages, $paginationData, $searchTerm, $activePromo);
+}
+
+function getPreparedReferentiels(array $refIds, string $searchTerm, array $paginationData): array
+{
+    $referentiels = get_referentiels_by_promo_id($refIds);
+
+    $referentiels = array_map(function ($ref) {
+        $ref['apprenants_count'] = count_apprenants_by_referentiel($ref['id']);
+        return $ref;
+    }, $referentiels);
+
+    $referentiels = searchReferentiels($referentiels, $searchTerm);
+    return paginateItems($referentiels, $paginationData);
+}
+
+function countAllReferentielsByPromo(array $refIds, string $searchTerm): int
+{
+    $referentiels = get_referentiels_by_promo_id($refIds);
+    $referentiels = searchReferentiels($referentiels, $searchTerm);
+    return count($referentiels);
+}
+
+function displayReferentielsListView(array $referentiels, int $totalPages, array $paginationData, string $searchTerm, ?array $activePromo): void
+{
     displayView('../Views/referentiels/liste.ref.view.php', [
         'referentiels' => $referentiels,
         'totalPages' => $totalPages,
@@ -56,6 +69,7 @@ function handleListeRef(): void
         'activePromo' => $activePromo
     ]);
 }
+
 
 function handleToutRef(): void
 {
@@ -83,15 +97,15 @@ function handleToutRef(): void
     ]);
 }
 
+
 function handleAdRef(): void
 {
     $activePromo = getActivePromotion();
 
     if (!$activePromo) {
-        setFlashMessageAndRedirect("Aucune promotion active sélectionnée", '?page=referentiel');
+        setFlashMessageAndRedirect(RefTexts::NO_ACTIVE_PROMO->value, '?page=referentiel');
         return;
     }
-
 
     require_once __DIR__ . '/../Services/PromoStateService.php';
     $activePromo['etat'] = \App\Services\PromoStateService::getState($activePromo);
@@ -112,7 +126,7 @@ function handleNewRef(): void
             $imagePath = uploadImage($_FILES['photo']);
 
             if ($imagePath === false) {
-                displayViewWithError('../Views/referentiels/new.ref.php', ['photo' => "Erreur lors du traitement de l'image"]);
+                displayViewWithError('../Views/referentiels/new.ref.php', ['photo' => RefTexts::IMAGE_ERROR->value]);
                 return;
             }
 
@@ -127,9 +141,9 @@ function handleNewRef(): void
             ];
 
             if (saveReferentielToFile($newRef)) {
-                setFlashMessageAndRedirect("Référentiel ajouté avec succès", '?page=referentiel&action=liste-ref');
+                setFlashMessageAndRedirect(RefTexts::REF_ADDED->value, '?page=referentiel&action=liste-ref');
             } else {
-                displayViewWithError('../Views/referentiels/new.ref.php', ['general' => "Erreur lors de la sauvegarde"]);
+                displayViewWithError('../Views/referentiels/new.ref.php', ['general' => RefTexts::SAVE_ERROR->value]);
             }
         } else {
             displayViewWithError('../Views/referentiels/new.ref.php', $validation['errors']);
@@ -139,67 +153,75 @@ function handleNewRef(): void
     }
 }
 
+
 function handleAssignRef(): void
 {
-    if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-        setFlashMessageAndRedirect("Méthode non autorisée", '?page=referentiel');
+    if (!isPostRequest()) {
+        redirectWithMessage(RefTexts::UNAUTHORIZED_METHOD->value, '?page=referentiel');
         return;
     }
 
     $activePromo = getActivePromotion();
 
     if (!$activePromo) {
-        setFlashMessageAndRedirect("Aucune promotion active sélectionnée", '?page=referentiel');
+        redirectWithMessage(RefTexts::NO_ACTIVE_PROMO->value, '?page=referentiel');
         return;
     }
 
-
-    $promoState = \App\Services\PromoStateService::getState($activePromo);
-    if ($promoState === 'termine') {
-        setFlashMessageAndRedirect(
-            "Les modifications sont désactivées pour les promotions terminées",
-            '?page=referentiel&action=liste-ref'
-        );
+    if (isPromoTerminated($activePromo)) {
+        redirectWithMessage(RefTexts::MODIF_DISABLED->value, '?page=referentiel&action=liste-ref');
         return;
     }
 
+    $updatedRefs = getValidatedReferentiels($_POST['referentiels'] ?? [], $_POST['assigned_refs'] ?? []);
 
-    $newRefs = $_POST['referentiels'] ?? [];
-    $currentAssignedRefs = $activePromo['referentiels'] ?? [];
-    $remainingRefs = $_POST['assigned_refs'] ?? [];
+    if (updatePromotionReferentiels($activePromo['id'], $updatedRefs)) {
+        $message = buildSuccessMessage($activePromo['referentiels'] ?? [], $_POST['referentiels'] ?? [], $_POST['assigned_refs'] ?? []);
+        redirectWithMessage($message, '?page=referentiel&action=liste-ref');
+    } else {
+        redirectWithMessage(RefTexts::UPDATE_ERROR->value, '?page=referentiel&action=ad-ref');
+    }
+}
 
+function isPostRequest(): bool
+{
+    return $_SERVER['REQUEST_METHOD'] === 'POST';
+}
 
+function redirectWithMessage(string $message, string $location): void
+{
+    setFlashMessageAndRedirect($message, $location);
+}
+
+function isPromoTerminated(array $promo): bool
+{
+    return \App\Services\PromoStateService::getState($promo) === 'termine';
+}
+
+function getValidatedReferentiels(array $newRefs, array $remainingRefs): array
+{
     $allRefs = get_all_ref();
     $validRefs = array_filter($allRefs, function ($ref) use ($newRefs, $remainingRefs) {
         return in_array($ref['id'] ?? null, array_merge($newRefs, $remainingRefs));
     });
-
-    $updatedRefs = array_column($validRefs, 'id');
-
-
-    if (updatePromotionReferentiels($activePromo['id'], $updatedRefs)) {
-        $message = "Référentiels mis à jour avec succès";
-
-
-        $removedCount = count($currentAssignedRefs) - count($remainingRefs);
-        if ($removedCount > 0) {
-            $message .= sprintf(" (%d référentiel(s) supprimé(s))", $removedCount);
-        }
-
-        if (!empty($newRefs)) {
-            $message .= sprintf(" (%d nouveau(x) référentiel(s) ajouté(s))", count($newRefs));
-        }
-
-        setFlashMessageAndRedirect($message, '?page=referentiel&action=liste-ref');
-    } else {
-        setFlashMessageAndRedirect(
-            "Erreur lors de la mise à jour des référentiels",
-            '?page=referentiel&action=ad-ref'
-        );
-    }
+    return array_column($validRefs, 'id');
 }
 
+function buildSuccessMessage(array $currentAssignedRefs, array $newRefs, array $remainingRefs): string
+{
+    $message = RefTexts::REFS_UPDATED->value;
 
+    $removedCount = count($currentAssignedRefs) - count($remainingRefs);
+    if ($removedCount > 0) {
+        $message .= sprintf(RefTexts::REMOVED_REFS->value, $removedCount);
+    }
+
+    if (!empty($newRefs)) {
+        $message .= sprintf(RefTexts::ADDED_REFS->value, count($newRefs));
+    }
+
+    return $message;
+}
 
 function getSearchTerm(): string
 {
